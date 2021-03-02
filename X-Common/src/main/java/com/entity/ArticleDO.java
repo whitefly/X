@@ -22,7 +22,10 @@ public class ArticleDO {
     String taskName;
 
     @Field("ctime")
-    Date ctime;  //新闻时间
+    Date ctime;  //新闻抓取时间
+
+    @Field("public_time")
+    Date ptime; //新闻发布时间
 
     @Field("title")
     String title; //标题

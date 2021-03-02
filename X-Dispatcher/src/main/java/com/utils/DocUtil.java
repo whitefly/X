@@ -77,7 +77,7 @@ public class DocUtil {
                 //要与标题的顺序一致
                 row.add(item.getTitle());
                 row.add(item.getContent());
-                row.add(item.getCtime());
+                row.add(item.getPtime());
                 item.getExtra().forEach((k, v) -> row.add(v));
                 dataObj.add(row);
             }

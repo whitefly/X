@@ -2,6 +2,8 @@ package com.manager;
 
 import com.entity.CrawlNode;
 import com.google.gson.Gson;
+import com.utils.ZKConstant;
+import com.utils.RedisConstant;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
@@ -9,13 +11,12 @@ import org.apache.curator.framework.recipes.cache.*;
 import org.apache.zookeeper.data.Stat;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.ListOperations;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 @Slf4j
@@ -26,8 +27,6 @@ public class NodeManager implements Manager {
      * 主要负责所有爬虫节点的查看,启动/暂停,关闭
      */
 
-    @Value("${zk.spider.path}")
-    private String SpiderPath;
 
     @Value("${zk.needmonitor:false}")
     private boolean needMonitor;
@@ -35,27 +34,31 @@ public class NodeManager implements Manager {
     @Autowired
     private CuratorFramework zkClient;
 
-    @Getter
-    Set<CrawlNode> nodes = new HashSet<>();
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
-    private static Gson gson = new Gson();
+
+    @Getter
+    Map<String, CrawlNode> nodes = new HashMap<>();
+
+    private static final Gson gson = new Gson();
 
     @PostConstruct
     public void init() {
         //判断节点是否存在
         try {
-            Stat stat = zkClient.checkExists().forPath(SpiderPath);
+            Stat stat = zkClient.checkExists().forPath(ZKConstant.ZK_SPIDER_ROOT);
             if (stat == null) {
                 //创建根节点
-                zkClient.create().forPath(SpiderPath);
+                zkClient.create().forPath(ZKConstant.ZK_SPIDER_ROOT);
             } else {
                 //提取已经存在的节点
-                List<CrawlNode> all = all();
-                nodes.addAll(all);
+                List<CrawlNode> all = findAllNodes();
+                all.forEach(x -> nodes.put(x.getId(), x));
             }
 
             //解析直接子节点的变化
-            watch();
+            startWatch();
         } catch (Exception e) {
             if (needMonitor) {
                 log.error("监控启动失败...进程退出", e);
@@ -64,20 +67,16 @@ public class NodeManager implements Manager {
     }
 
 
-    @Override
-    public List<CrawlNode> all() {
+    private List<CrawlNode> findAllNodes() {
         List<CrawlNode> nodes = new ArrayList<>();
         try {
-            List<String> nodeKeys = zkClient.getChildren().forPath(SpiderPath);
-            if (nodeKeys != null) {
-                for (String key : nodeKeys) {
-                    byte[] bytes = zkClient.getData().forPath(key);
-                    String status = new String(bytes);
-                    String[] split = key.split(":");
-                    String host = split[0];
-                    Integer pid = Integer.parseInt(split[1]);
-
-                    CrawlNode crawlNode = new CrawlNode(host, pid, status);
+            List<String> nodeName = zkClient.getChildren().forPath(ZKConstant.ZK_SPIDER_ROOT);
+            System.out.println(nodeName);
+            if (nodeName != null) {
+                for (String key : nodeName) {
+                    byte[] bytes = zkClient.getData().forPath(ZKConstant.ZK_SPIDER_ROOT + "/" + key);
+                    String base = new String(bytes);
+                    CrawlNode crawlNode = gson.fromJson(base, CrawlNode.class);
                     nodes.add(crawlNode);
                 }
             }
@@ -88,24 +87,22 @@ public class NodeManager implements Manager {
     }
 
     @Override
-    public void stop(CrawlNode node) {
-
+    public void stop(String nodeId) {
+        ListOperations<String, String> op = redisTemplate.opsForList();
+        op.leftPush(RedisConstant.getCmdKey(nodeId), "stop");
     }
 
     @Override
-    public void exit(CrawlNode node) {
-
+    public void start(String nodeId) {
+        ListOperations<String, String> op = redisTemplate.opsForList();
+        op.leftPush(RedisConstant.getCmdKey(nodeId) + nodeId, "start");
     }
 
-    @Override
-    public void start(CrawlNode node) {
 
-    }
-
-    public void watch() {
+    public void startWatch() {
         CuratorCacheListener listener = CuratorCacheListener
                 .builder()
-                .forPathChildrenCache(SpiderPath, zkClient, (client, event) -> {
+                .forPathChildrenCache(ZKConstant.ZK_SPIDER_ROOT, zkClient, (client, event) -> {
                     switch (event.getType()) {
                         case CHILD_ADDED:
                             handleChildAdd(event);
@@ -115,7 +112,7 @@ public class NodeManager implements Manager {
                     }
                 }).build();
 
-        CuratorCache cache = CuratorCache.builder(zkClient, SpiderPath).build();
+        CuratorCache cache = CuratorCache.builder(zkClient, ZKConstant.ZK_SPIDER_ROOT).build();
         cache.listenable().addListener(listener);
         cache.start();
         log.info("管理节点开始监听zk...");
@@ -123,18 +120,27 @@ public class NodeManager implements Manager {
 
     private void handleChildAdd(PathChildrenCacheEvent event) {
         CrawlNode crawlNode = parseInfo(event.getData());
-        log.info(crawlNode.getHost() + ":" + crawlNode.getPid() + "上线");
-        nodes.add(crawlNode);
+        log.info(crawlNode.getId() + ":上线了");
+        nodes.put(crawlNode.getId(), crawlNode);
     }
 
     private void handleChildDel(PathChildrenCacheEvent event) {
         CrawlNode crawlNode = parseInfo(event.getData());
-        log.info(crawlNode.getHost() + ":" + crawlNode.getPid() + " 下线");
-        nodes.remove(crawlNode);
+        log.info(crawlNode.getId() + ":下线了");
+        nodes.remove(crawlNode.getId());
+        clearNodeRedisInfo(crawlNode);
+    }
+
+    private void clearNodeRedisInfo(CrawlNode crawlNode) {
+        //删除zk上的命令节点和状态节点
+        redisTemplate.delete(RedisConstant.getCmdKey(crawlNode.getId()));
+        redisTemplate.delete(RedisConstant.getStateKey(crawlNode.getId()));
     }
 
     private CrawlNode parseInfo(ChildData data) {
         String info = new String(data.getData());
         return gson.fromJson(info, CrawlNode.class);
     }
+
+
 }

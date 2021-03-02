@@ -7,8 +7,8 @@ import com.entity.*;
 import com.exception.WebException;
 import com.parser.TestBodyParser;
 import com.parser.TestIndexParser;
-import com.utils.Constant;
 import com.utils.FieldUtil;
+import com.utils.RedisConstant;
 import com.utils.UrlUtil;
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +22,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.exception.ErrorCode.*;
+import static com.utils.ChromeUtil.chromeDownloader;
 
 @Service
 @Slf4j
@@ -38,6 +39,7 @@ public class TaskService {
 
     @Autowired
     private RedisDao redisDao;
+
 
     public void addTask(TaskDO task, IndexParserDO indexParser) {
         //检查重复,验证cron
@@ -97,7 +99,7 @@ public class TaskService {
         dispatcher.delTask(task);
 
         //删除redis中的指纹set
-        String hashKey = Constant.getHashKey(taskId);
+        String hashKey = RedisConstant.getHashKey(taskId);
         redisDao.delSet(hashKey);
         log.info("删除redis set:" + hashKey);
 
@@ -240,7 +242,11 @@ public class TaskService {
         List<String> rnt = new ArrayList<>();
         TestIndexParser spider = new TestIndexParser(task, indexParser, rnt);
         //抓取单页面
-        Spider.create(spider).addUrl(task.getStartUrl()).thread(1).run();
+        Spider app = Spider.create(spider).addUrl(task.getStartUrl()).thread(1);
+        if (task.isDynamic()) {
+            app.setDownloader(chromeDownloader);
+        }
+        app.run();
         return rnt;
     }
 

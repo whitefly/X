@@ -1,6 +1,6 @@
 package com.web.controller;
 
-import com.downloader.ChromeDownloader;
+import com.utils.ChromeUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -28,7 +28,6 @@ import static com.utils.TaskUtil.change2AbsUrl;
 public class CssHelperController {
 
     RestTemplate restTemplate = new RestTemplate();
-    ChromeDownloader chromeDownloader = new ChromeDownloader("./chromedriver/chromedriver_mac");
 
     @GetMapping(path = "api/help")
     public String helper() {
@@ -48,7 +47,7 @@ public class CssHelperController {
             if (selenium) {
                 //动态加载
                 Request request = new Request(url);
-                Page download = chromeDownloader.download(request, null);
+                Page download = ChromeUtil.chromeDownloader.download(request, null);
                 result = download.getRawText();
             } else {
                 //静态加载

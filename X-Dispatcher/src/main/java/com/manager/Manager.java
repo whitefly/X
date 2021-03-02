@@ -6,11 +6,9 @@ import java.util.List;
 
 public interface Manager {
 
-    List<CrawlNode> all();
 
-    void stop(CrawlNode node);
+    void stop(String nodeId);
 
-    void exit(CrawlNode node);
 
-    void start(CrawlNode node);
+    void start(String nodeId);
 }

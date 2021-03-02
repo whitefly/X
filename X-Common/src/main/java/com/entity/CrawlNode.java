@@ -7,12 +7,10 @@ import lombok.Data;
 public class CrawlNode {
     String host;  //ip地址
     Integer pid;  //进程号
-    String status;  //运行状态
 
-    public CrawlNode(String host, Integer pid, String status) {
+    public CrawlNode(String host, Integer pid) {
         this.host = host;
         this.pid = pid;
-        this.status = status;
     }
 
 
@@ -28,6 +26,10 @@ public class CrawlNode {
     @Override
     public int hashCode() {
         return Objects.hashCode(host, pid);
+    }
+
+    public String getId() {
+        return host + ":" + pid;
     }
 }
 

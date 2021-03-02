@@ -1,24 +1,17 @@
 package com.dao;
 
-import lombok.Getter;
+import com.utils.ZKConstant;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.zookeeper.CreateMode;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import java.util.Collections;
-import java.util.List;
 
 
 @Component
 @Slf4j
 public class ZkDao {
 
-    @Getter
-    @Value("${zk.spider.path}")
-    public String SpiderPath;
 
     @Autowired
     private CuratorFramework zkClient;
@@ -26,7 +19,7 @@ public class ZkDao {
 
     public boolean registerNode(String info) {
         //注册临时节点
-        String path = SpiderPath + "/node-";
+        String path = ZKConstant.ZK_SPIDER_ROOT + "/node-";
         try {
             if (info == null) {
                 zkClient.create().withMode(CreateMode.EPHEMERAL_SEQUENTIAL).forPath(path);
@@ -40,13 +33,4 @@ public class ZkDao {
         }
     }
 
-    public List<String> getNodes() {
-        try {
-            //获取所有注册的抓取节点
-            return zkClient.getChildren().forPath(SpiderPath);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return Collections.emptyList();
-    }
 }

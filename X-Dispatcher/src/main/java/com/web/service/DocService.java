@@ -4,7 +4,7 @@ import com.dao.MongoDao;
 import com.dao.RedisDao;
 import com.entity.ArticleDO;
 import com.exception.WebException;
-import com.utils.Constant;
+import com.utils.RedisConstant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -39,7 +39,7 @@ public class DocService {
         log.info("mongodb删除新闻数据[success]:{}", taskId);
 
         //删除redis中的指纹set
-        String hashKey = Constant.getHashKey(taskId);
+        String hashKey = RedisConstant.getHashKey(taskId);
         redisDao.delSet(hashKey);
         log.info("删除redis set:" + hashKey);
     }
