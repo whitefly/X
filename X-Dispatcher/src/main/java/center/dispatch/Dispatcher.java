@@ -1,10 +1,14 @@
 package center.dispatch;
 
 
+import com.constant.RedisConstant;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
 import com.entity.DispatchLogDO;
+import com.entity.IndexParserDO;
 import com.entity.TaskDO;
+import com.entity.TaskEditVO;
+import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -34,12 +38,15 @@ public class Dispatcher {
     @Value("${spider.dispatcher.run:false}")
     private boolean runState;
 
+    Gson gson = new Gson();
 
     @Getter
     @Setter
     public static class PusherJob implements Job {
         private String taskId;
         private String taskName;
+        private String fullCrawlData;
+        private String taskType;
 
 
         @SneakyThrows
@@ -48,12 +55,16 @@ public class Dispatcher {
             // TODO: 2021/3/3 直接通过redis发送 task和解析器,避免下游重复查询mongodb
             RedisDao redisDao = (RedisDao) jobExecutionContext.getScheduler().getContext().get("redisDao");
             MongoDao mongoDao = (MongoDao) jobExecutionContext.getScheduler().getContext().get("mongoDao");
-            redisDao.put(taskId);
+
+
+            // TODO: 2021/3/4 后期需要更加灵活配置,这里先写死
+            String queue = "PageParser".equals(taskType) ? RedisConstant.DISPATCHER_LONG_TASK_QUEUE_KEY : RedisConstant.DISPATCHER_SHORT_TASK_QUEUE_KEY;
+            redisDao.put(queue, fullCrawlData);
 
 
             //保存到mongoDB
             LocalTime now = LocalTime.now();
-            log.info("time: {}  push taskId :{}   name:{}", now, taskId, taskName);
+            log.info("time: {}  push taskId :{}   name:{} to {}", now, taskId, taskName, queue);
             DispatchLogDO dispatchLogDO = new DispatchLogDO(taskName, taskId, Date.from(Instant.now()));
             mongoDao.saveDispatchLog(dispatchLogDO);
         }
@@ -82,12 +93,28 @@ public class Dispatcher {
     public void cronTask(TaskDO task, String cron) {
         String taskJobKey = getTaskJobKey(task);
         String triggerKey = getTriggerJobKey(task);
+        //获取解析器
+        IndexParserDO indexParser = mongoDao.findIndexParserById(task.getParserId());
+
+        //任务整体信息
+        TaskEditVO taskEditVO = new TaskEditVO();
+        taskEditVO.setTask(task);
+        taskEditVO.setParser(indexParser);
+
+        //为了下游好序列化,设置type
+        if (indexParser.getType() == null) indexParser.setType(task.getParserType());
+
+        String fullCrawlData = gson.toJson(taskEditVO);
+
+
         try {
             //设定上传任务
             JobDetail pusher = JobBuilder.newJob(PusherJob.class)
                     .withIdentity(taskJobKey)
                     .usingJobData("taskId", task.getId())
                     .usingJobData("taskName", task.getName())
+                    .usingJobData("fullCrawlData", fullCrawlData)
+                    .usingJobData("taskType", task.getParserType())
                     .build();
 
             CronTrigger trigger = TriggerBuilder

@@ -1,14 +1,11 @@
 package center.manager;
 
-import com.entity.CrawlNode;
-
-import java.util.List;
-
 public interface Manager {
 
 
-    void stop(String nodeId);
+    void sendCmdNodeStop(String nodeId);
 
+    void sendCmdNodeStart(String nodeId);
 
-    void start(String nodeId);
+    void sendCmdNodeMoveCluster(String nodeId, String clusterId);
 }

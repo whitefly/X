@@ -1,5 +1,6 @@
 package center.web.controller;
 
+import center.manager.Cluster;
 import center.manager.NodeManager;
 import center.web.service.DocService;
 import center.web.service.TaskService;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @CrossOrigin
 @Slf4j
@@ -66,12 +68,15 @@ public class LogController {
         DataPlusVO dataPlusVO = new DataPlusVO(date, count);
         long newsCount = DocService.getDocCountByTaskId(null);
         long taskCount = taskService.getTaskCount();
-        long nodeCount = manager.getNodes().size();
+        Map<String, Cluster> clusters = manager.getClusters();
+        int nodeCount = 0;
+        for (Cluster c : clusters.values()) {
+            nodeCount += c.getNodes().size();
+        }
 
         dataPlusVO.setNewsCount(newsCount);
         dataPlusVO.setTaskCount(taskCount);
-        dataPlusVO.setNodeCount(nodeCount);
-
+        dataPlusVO.setNodeCount((long) nodeCount);
         return new ResponseVO(dataPlusVO);
     }
 }

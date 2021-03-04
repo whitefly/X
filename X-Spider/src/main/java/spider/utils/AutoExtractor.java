@@ -25,11 +25,6 @@ import java.util.regex.Pattern;
 
 import static spider.utils.TimeUtil.extractTimeStr;
 
-/**
- * ContentExtractor could extract content,title,time from news webpage
- *
- * @author hu
- */
 public class AutoExtractor {
 
     @Data

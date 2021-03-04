@@ -1,8 +1,13 @@
 package spider.reactor;
 
+import com.constant.RedisConstant;
+import com.constant.ZKConstant;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
 import com.dao.ZkDao;
+import com.google.gson.GsonBuilder;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.RedisSystemException;
 import spider.downloader.ChromeDownloader;
 import com.entity.*;
 import com.google.gson.Gson;
@@ -26,11 +31,12 @@ import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static com.utils.ParserUtil.parserMapping;
+import static com.utils.ParserUtil.typeAdapter;
 import static com.utils.SystemInfoUtil.*;
 
-@Component
+
 @Slf4j
+@Component
 public class CrawlReactor {
 
     @Autowired
@@ -56,7 +62,10 @@ public class CrawlReactor {
     @Value("${spider.crawler.app:false}")
     private volatile boolean workState;
 
-    static Gson gson = new Gson();
+    private volatile String taskQueue;
+    private volatile String nodePath;
+
+    Gson gson = new GsonBuilder().registerTypeAdapterFactory(typeAdapter).create();
 
     private Thread reactorThread;
 
@@ -71,43 +80,51 @@ public class CrawlReactor {
 
     @PostConstruct
     void init() {
+        //默认开始只抓取短任务
+        //监听短任务队列+注册短任务集群
+        taskQueue = RedisConstant.DISPATCHER_SHORT_TASK_QUEUE_KEY;
+
         if (reactorState) {
             //注册zk节点
             CrawlNode node = new CrawlNode(getHost(), getPid());
             String info = gson.toJson(node);
-            if (zkDao.registerNode(info)) {
-                log.info("注册成功信息为:" + info);
+            String myNodePath;
+            if ((myNodePath = zkDao.registerNode2(ZKConstant.Spider_Cluster_Short_ROOT, info)) != null) {
+                nodePath = myNodePath;
+                log.info("zk中 {} 注册成功,path: {} 信息: {}", ZKConstant.Spider_Cluster_Short_ROOT, nodePath, info);
+
                 reactorThread = new Thread(() -> {
                     log.info("线程{} 单节点爬虫启动.....", Thread.currentThread().getName());
                     startReactor();
                 }, "node");
+
                 reactorThread.start();
             } else {
-                log.error("爬虫节点启动注册zk失败,reactor线程未启动,进程结束");
+                log.error("爬虫节点启动注册zk失败,reactor线程未启动");
             }
         } else {
             log.info("reactorState配置为false,reactor线程未启动");
         }
     }
 
-    private PageProcessor getPageProcessorByTask(TaskDO task) {
+
+    private PageProcessor genPageProcessor(TaskDO task, IndexParserDO parser) {
         //根据不同的类型,封装好不同的爬虫实例
         PageProcessor processor = null;
         String parserType = task.getParserType();
-        Class<? extends IndexParserDO> parserDOClazz = parserMapping.get(parserType);
-        Object parseVo = mongoDao.findIndexParserById(task.getParserId(), parserDOClazz);
         if ("IndexParser".equals(parserType)) {
-            processor = new IndexParser(task, (IndexParserDO) parseVo);
+            processor = new IndexParser(task, parser);
         } else if ("电子报Parser".equals(parserType)) {
-            processor = new EpaperParser(task, (EpaperParserDO) parseVo);
+            processor = new EpaperParser(task, (EpaperParserDO) parser);
         } else if ("PageParser".equals(parserType)) {
-            processor = new PageParser(task, (PageParserDO) parseVo);
+            processor = new PageParser(task, (PageParserDO) parser);
         }
         return processor;
     }
 
 
     void startReactor() {
+        log.info("监听任务队列: {}", taskQueue);
         boolean lastRound = true;
         while (reactorState) {
             if (lastRound != workState) {
@@ -122,7 +139,6 @@ public class CrawlReactor {
                 //处于非运行状态(定时sleep)
                 doWhenFree();
             }
-
         }
     }
 
@@ -131,18 +147,21 @@ public class CrawlReactor {
         try {
             Thread.sleep(5000);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            log.warn("原地休眠时被唤醒...");
         }
     }
 
     void doWhenWork() {
-        //监控某个队列的端口
-        String taskId = redisDao.take();
+        //监控redis上的某个任务队列
 
-        TaskDO task = mongoDao.findTaskById(taskId);
-        if (task != null) {
+        try {
+
+            String taskEditVO = redisDao.take(taskQueue);
+            TaskEditVO taskEditVO1 = gson.fromJson(taskEditVO, TaskEditVO.class);
+            TaskDO task = taskEditVO1.getTask();
+            IndexParserDO parser = taskEditVO1.getParser();
+            PageProcessor processor = genPageProcessor(task, parser);
             log.info("获取即将启动爬虫的基本信息:{}", task);
-            PageProcessor processor = getPageProcessorByTask(task);
 
             if (processor == null) {
                 log.warn("无法匹配到正确的spider类型:[{}]", task.getParserType());
@@ -158,8 +177,10 @@ public class CrawlReactor {
             }
 
             executorService.submit(() -> runCrawlTask(task, processor));
-        } else {
-            log.warn("无法查询到id对应的抓取任务:" + taskId);
+
+        } catch (RedisSystemException e) {
+            log.warn("上一轮redis队列监听中断,现在监听队列:{}", taskQueue);
+            Thread.interrupted();
         }
     }
 
@@ -184,13 +205,29 @@ public class CrawlReactor {
         mongoDao.savaCrawlLog(crawlLogDO);
     }
 
-    public void stopWork() {
-        workState = false;
-        log.info("workState 切换为:" + workState);
+    public void setWorkState(boolean expect) {
+        workState = expect;
+        reactorThread.interrupt();
+        log.info("workState 设置为:" + workState);
     }
 
-    public void startWork() {
-        workState = true;
-        log.info("workState 切换为:" + workState);
+
+    public void changeTaskQueue(String queueKey) {
+        taskQueue = queueKey;
+        reactorThread.interrupt();
+        log.info("修改监听任务队列: {}", queueKey);
+
+    }
+
+    public void moveNode(String clusterRoot) {
+        //zk节点删除
+        CrawlNode node = new CrawlNode(getHost(), getPid());
+        String info = gson.toJson(node);
+        zkDao.deleteNode(nodePath);
+        log.info("删除zk节点:{}", nodePath);
+
+        //zk节点注册
+        nodePath = zkDao.registerNode2(clusterRoot, info);
+        log.info("注册zk节点:{}", nodePath);
     }
 }

@@ -1,5 +1,7 @@
 package center.manager;
 
+import com.constant.CmdType;
+import com.dao.RedisDao;
 import com.entity.CrawlNode;
 import com.google.gson.Gson;
 import com.constant.ZKConstant;
@@ -11,8 +13,6 @@ import org.apache.curator.framework.recipes.cache.*;
 import org.apache.zookeeper.data.Stat;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.ListOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -35,34 +35,51 @@ public class NodeManager implements Manager {
     private CuratorFramework zkClient;
 
     @Autowired
-    private StringRedisTemplate redisTemplate;
+    RedisDao redisDao;
 
-
-    @Getter
-    Map<String, CrawlNode> nodes = new HashMap<>();
 
     private static final Gson gson = new Gson();
 
+    @Getter
+    Map<String, Cluster> clusters = new HashMap<>();
+
     @PostConstruct
     public void init() {
-        //判断节点是否存在
         try {
-            Stat stat = zkClient.checkExists().forPath(ZKConstant.ZK_SPIDER_ROOT);
+            //手机集群信息
+            Cluster clusterShort = new Cluster(ZKConstant.Spider_Cluster_Short_ROOT);
+            Cluster clusterLong = new Cluster(ZKConstant.Spider_Cluster_Long_ROOT);
+
+            clusters.put(clusterShort.getClusterId(), clusterShort);
+            clusters.put(clusterLong.getClusterId(), clusterLong);
+
+            clusters.forEach((k, v) -> initClusterData(v));
+        } catch (Exception e) {
+            if (needMonitor) {
+                log.error("监控启动失败...进程退出", e);
+            }
+        }
+    }
+
+    private void initClusterData(Cluster cluster) {
+        String clusterId = cluster.getClusterId();
+        Stat stat = null;
+        try {
+            stat = zkClient.checkExists().forPath(clusterId);
             if (stat == null) {
                 //创建根节点
-                zkClient.create().forPath(ZKConstant.ZK_SPIDER_ROOT);
+                zkClient.create().forPath(cluster.getClusterId());
             } else {
                 //提取已经存在的节点
+                Map<String, CrawlNode> nodes = cluster.nodes;
                 List<CrawlNode> all = findAllNodes();
                 all.forEach(x -> nodes.put(x.getId(), x));
             }
 
             //解析直接子节点的变化
-            startWatch();
+            startWatch(clusterId);
         } catch (Exception e) {
-            if (needMonitor) {
-                log.error("监控启动失败...进程退出", e);
-            }
+            e.printStackTrace();
         }
     }
 
@@ -87,22 +104,30 @@ public class NodeManager implements Manager {
     }
 
     @Override
-    public void stop(String nodeId) {
-        ListOperations<String, String> op = redisTemplate.opsForList();
-        op.leftPush(RedisConstant.getCmdKey(nodeId), "stop");
+    public void sendCmdNodeStop(String nodeId) {
+        String cmdStr = CmdType.genCmdStr(CmdType.Node_Work_Stop, null);
+        redisDao.put(RedisConstant.getCmdKey(nodeId), cmdStr);
+        log.info("向 {} 发送指令: {}", nodeId, cmdStr);
     }
 
     @Override
-    public void start(String nodeId) {
-        ListOperations<String, String> op = redisTemplate.opsForList();
-        op.leftPush(RedisConstant.getCmdKey(nodeId) + nodeId, "start");
+    public void sendCmdNodeStart(String nodeId) {
+        String cmdStr = CmdType.genCmdStr(CmdType.Node_Work_Start, null);
+        redisDao.put(RedisConstant.getCmdKey(nodeId), cmdStr);
+        log.info("向 {} 发送指令: {}", nodeId, cmdStr);
     }
 
+    @Override
+    public void sendCmdNodeMoveCluster(String nodeId, String clusterId) {
+        String cmdStr = CmdType.genCmdStr(CmdType.Node_Cluster_Move, clusterId);
+        redisDao.put(RedisConstant.getCmdKey(nodeId), cmdStr);
+        log.info("向 {} 发送指令: {}", nodeId, cmdStr);
+    }
 
-    public void startWatch() {
+    private void startWatch(String clusterId) {
         CuratorCacheListener listener = CuratorCacheListener
                 .builder()
-                .forPathChildrenCache(ZKConstant.ZK_SPIDER_ROOT, zkClient, (client, event) -> {
+                .forPathChildrenCache(clusterId, zkClient, (client, event) -> {
                     switch (event.getType()) {
                         case CHILD_ADDED:
                             handleChildAdd(event);
@@ -112,34 +137,59 @@ public class NodeManager implements Manager {
                     }
                 }).build();
 
-        CuratorCache cache = CuratorCache.builder(zkClient, ZKConstant.ZK_SPIDER_ROOT).build();
+        CuratorCache cache = CuratorCache.builder(zkClient, clusterId).build();
         cache.listenable().addListener(listener);
         cache.start();
-        log.info("管理节点开始监听zk...");
+        log.info("开始监听zk节点目录: {}", clusterId);
     }
 
     private void handleChildAdd(PathChildrenCacheEvent event) {
         CrawlNode crawlNode = parseInfo(event.getData());
+        String path = event.getData().getPath();
         log.info(crawlNode.getId() + ":上线了");
-        nodes.put(crawlNode.getId(), crawlNode);
+
+        Cluster ownCluster = getClusterByPath(path);
+        if (ownCluster != null) {
+            ownCluster.nodes.put(crawlNode.getId(), crawlNode);
+        } else {
+            log.warn("该节点路径不在管理之内 path:{}", path);
+        }
+
     }
 
     private void handleChildDel(PathChildrenCacheEvent event) {
         CrawlNode crawlNode = parseInfo(event.getData());
+        String path = event.getData().getPath();
         log.info(crawlNode.getId() + ":下线了");
-        nodes.remove(crawlNode.getId());
+
+        Cluster ownCluster = getClusterByPath(path);
+        if (ownCluster != null) {
+            ownCluster.nodes.remove(crawlNode.getId());
+        } else {
+            log.warn("该节点路径不在管理之内 path:{}", path);
+        }
         clearNodeRedisInfo(crawlNode);
     }
 
     private void clearNodeRedisInfo(CrawlNode crawlNode) {
         //删除zk上的命令节点和状态节点
-        redisTemplate.delete(RedisConstant.getCmdKey(crawlNode.getId()));
-        redisTemplate.delete(RedisConstant.getStateKey(crawlNode.getId()));
+        redisDao.deleteKey(RedisConstant.getCmdKey(crawlNode.getId()));
+        redisDao.deleteKey(RedisConstant.getStateKey(crawlNode.getId()));
     }
+
 
     private CrawlNode parseInfo(ChildData data) {
         String info = new String(data.getData());
         return gson.fromJson(info, CrawlNode.class);
+    }
+
+    private Cluster getClusterByPath(String path) {
+        for (Map.Entry<String, Cluster> entry : clusters.entrySet()) {
+            if (path.startsWith(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
 

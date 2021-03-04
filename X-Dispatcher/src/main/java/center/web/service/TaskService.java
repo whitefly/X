@@ -101,7 +101,7 @@ public class TaskService {
         dispatcher.delTask(task);
 
         //删除redis中的指纹set
-        String hashKey = RedisConstant.getHashKey(taskId);
+        String hashKey = RedisConstant.getExtractedKey(taskId);
         redisDao.delSet(hashKey);
         log.info("删除redis set:" + hashKey);
 

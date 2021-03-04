@@ -10,5 +10,8 @@ public class IndexParserDO extends NewsParserBO {
 
     @Field("index_rule")
     FieldDO indexRule;
+
+
+    String type;//用来反序列化是使用,平时用不到
 }
 

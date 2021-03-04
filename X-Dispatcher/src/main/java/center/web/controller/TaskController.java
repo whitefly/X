@@ -66,6 +66,7 @@ public class TaskController {
         TaskDO task = taskEditVO.getTask();
         IndexParserDO parser = taskEditVO.getParser();
 
+
         taskService.updateTask(task, parser);
         return new ResponseVO();
     }

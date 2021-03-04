@@ -39,7 +39,7 @@ public class DocService {
         log.info("mongodb删除新闻数据[success]:{}", taskId);
 
         //删除redis中的指纹set
-        String hashKey = RedisConstant.getHashKey(taskId);
+        String hashKey = RedisConstant.getExtractedKey(taskId);
         redisDao.delSet(hashKey);
         log.info("删除redis set:" + hashKey);
     }
