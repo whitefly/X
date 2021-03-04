@@ -7,8 +7,6 @@ public class FingerprintUtil {
 
     public static String MD5Url(String url) {
         //最简单的手指,直接用url算个md5,然后存入redis
-        return DigestUtils.md5Hex(url.trim());
+        return DigestUtils.md5Hex(url);
     }
-
-
 }

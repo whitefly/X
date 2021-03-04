@@ -6,15 +6,22 @@ import com.mongodb.client.result.UpdateResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.aggregation.DateOperators;
 import org.springframework.data.mongodb.core.aggregation.TypedAggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.redis.stream.Task;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 
@@ -138,6 +145,24 @@ public class MongoDao {
         return mongoTemplate.findAll(TaskDO.class);
     }
 
+
+    /**
+     * 查询任务,俺时间排序
+     * Query query = taskId == null ? new Query() : new Query(Criteria.where("task_id").is(taskId));
+     * query.limit(pageSize).skip((pageIndex - 1) * pageSize).with(Sort.by(Sort.Direction.DESC, "ctime"));
+     * return mongoTemplate.find(query, ArticleDO.class);
+     */
+    public List<TaskDO> findTasksByPageIndex(Integer pageIndex, Integer pageSize, String keyWord) {
+        Query query = StringUtils.isEmpty(keyWord) ? new Query() : new Query(Criteria.where("name").regex(keyWord));
+        query.limit(pageSize).skip((pageIndex - 1) * pageIndex).with(Sort.by(Sort.Direction.DESC, "op_time"));
+        return mongoTemplate.find(query, TaskDO.class);
+    }
+
+    public long taskCount() {
+        Query query = new Query();
+        return mongoTemplate.count(query, TaskDO.class);
+    }
+
     /**
      * 查询激活的全部任务
      *
@@ -148,12 +173,6 @@ public class MongoDao {
         return mongoTemplate.find(query, TaskDO.class);
     }
 
-    public boolean updateTaskState(TaskDO taskDO, boolean active) {
-        Query query = new Query(Criteria.where("id").is(taskDO.getId()));
-        Update update = new Update().set("is_active", active);
-        UpdateResult updateResult = mongoTemplate.updateFirst(query, update, TaskDO.class);
-        return updateResult.wasAcknowledged();
-    }
 
     public boolean delTask(TaskDO task) {
         Query query = new Query(Criteria.where("id").is(task.getId()));
@@ -192,10 +211,15 @@ public class MongoDao {
 
     //--------------------------------------------------------------------
     //article表
-    public List<ArticleDO> findArticleByPage(String taskId, Integer page) {
+    public List<ArticleDO> findArticleByPage(String taskId, Integer pageIndex, int pageSize) {
         Query query = taskId == null ? new Query() : new Query(Criteria.where("task_id").is(taskId));
-        query.limit(ARTICLE_PAGE_COUNT).skip((page - 1) * ARTICLE_PAGE_COUNT).with(Sort.by(Sort.Direction.DESC, "ctime"));
+        query.limit(pageSize).skip((pageIndex - 1) * pageSize).with(Sort.by(Sort.Direction.DESC, "ctime"));
         return mongoTemplate.find(query, ArticleDO.class);
+    }
+
+    public long countArticle(String taskId) {
+        Query query = taskId == null ? new Query() : new Query(Criteria.where("task_id").is(taskId));
+        return mongoTemplate.count(query, ArticleDO.class);
     }
 
     public void deleteArticleByTaskId(String taskId) {
@@ -206,6 +230,32 @@ public class MongoDao {
     public Long sizeOfArticle(String taskId) {
         Query query = taskId == null ? new Query() : new Query(Criteria.where("task_id").is(taskId));
         return mongoTemplate.count(query, ArticleDO.class);
+    }
+
+    /**
+     * 统计7天的数据量
+     */
+    public List<DataPlus> statisticalCount() {
+        long l = new Date().getTime() - 7 * 24 * 3600 * 1000;
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        String format = simpleDateFormat.format(new Date(l));
+        Date past = new Date();
+        try {
+            past = simpleDateFormat.parse(format);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+
+        TypedAggregation<ArticleDO> agg = newAggregation(ArticleDO.class,
+                match(Criteria.where("ctime").gte(past)),
+                Aggregation.project("ctime").andExpression("{$dateToString:{format:'%Y-%m-%d', date: '$ctime', timezone: 'Asia/Shanghai'}}").as("time"),
+                group("time").count().as("count"),
+                Aggregation.project("time", "count").and("time").previousOperation(),
+                Aggregation.sort(Sort.Direction.ASC, "time")
+        );
+        AggregationResults<DataPlus> rnt = mongoTemplate.aggregate(agg, DataPlus.class);
+        return rnt.getMappedResults();
     }
 
     //--------------------------------------------------------------------
