@@ -11,7 +11,9 @@ public enum CmdType {
     Node_Work_Start,
     Node_Work_Stop,
 
-    Node_Cluster_Move;
+    Node_Cluster_Move,
+
+    Node_Process_Kill;
 
 
     public static String genCmdStr(CmdType cmdType, String param) {

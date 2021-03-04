@@ -118,6 +118,13 @@ public class NodeManager implements Manager {
     }
 
     @Override
+    public void sendCmdNodeKill(String nodeId) {
+        String cmdStr = CmdType.genCmdStr(CmdType.Node_Process_Kill, null);
+        redisDao.put(RedisConstant.getCmdKey(nodeId), cmdStr);
+        log.info("向 {} 发送指令: {}", nodeId, cmdStr);
+    }
+
+    @Override
     public void sendCmdNodeMoveCluster(String nodeId, String clusterId) {
         String cmdStr = CmdType.genCmdStr(CmdType.Node_Cluster_Move, clusterId);
         redisDao.put(RedisConstant.getCmdKey(nodeId), cmdStr);
@@ -191,6 +198,4 @@ public class NodeManager implements Manager {
         }
         return null;
     }
-
-
 }

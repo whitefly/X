@@ -7,5 +7,7 @@ public interface Manager {
 
     void sendCmdNodeStart(String nodeId);
 
+    void sendCmdNodeKill(String nodeId);
+
     void sendCmdNodeMoveCluster(String nodeId, String clusterId);
 }

@@ -78,6 +78,10 @@ public class CommandManager {
                 break;
             case Node_Cluster_Move:
                 handleClusterMove(param);
+                break;
+            case Node_Process_Kill:
+                handleKill();
+                break;
             default:
         }
     }
@@ -100,5 +104,9 @@ public class CommandManager {
         } else if (ZKConstant.Spider_Cluster_Long_ROOT.equals(clusterId)) {
             crawlReactor.changeTaskQueue(RedisConstant.DISPATCHER_LONG_TASK_QUEUE_KEY);
         }
+    }
+
+    private void handleKill() {
+        System.exit(-1);
     }
 }

@@ -48,6 +48,10 @@ public class NodeController {
                 result.add(new CrawlNodeInfoVO(crawlNode, info, entry.getKey()));
             }
         }
+
+        //排序
+        result.sort((Comparator.comparing(o -> o.getNode().getId())));
+
         return new ResponseVO(result);
     }
 
@@ -75,6 +79,14 @@ public class NodeController {
         System.out.println(current);
         String next = current.equals(ZKConstant.Spider_Cluster_Long_ROOT) ? ZKConstant.Spider_Cluster_Short_ROOT : ZKConstant.Spider_Cluster_Long_ROOT;
         nodeManager.sendCmdNodeMoveCluster(nodeId, next);
+        return new ResponseVO();
+    }
+
+    @PostMapping(path = "/kill")
+    public ResponseVO killNode(@RequestBody String params) {
+        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        String nodeId = (String) hashMap.get("nodeId");
+        nodeManager.sendCmdNodeKill(nodeId);
         return new ResponseVO();
     }
 }
