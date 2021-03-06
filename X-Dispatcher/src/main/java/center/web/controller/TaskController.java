@@ -87,7 +87,7 @@ public class TaskController {
 
     @GetMapping(path = "/list")
     public ResponseVO taskList1(@RequestParam(value = "name") String name, @RequestParam(value = "pageIndex") Integer pageIndex, @RequestParam(value = "pageSize") Integer pageSize) {
-        List<TaskDO> tasks = taskService.getTasks3(pageIndex, pageSize, name);
+        List<TaskDO> tasks = taskService.getTasks(pageIndex, pageSize, name);
         long taskCount = taskService.getTaskCount();
         PageVO<TaskDO> taskDOPageVO = new PageVO<>(taskCount, tasks);
         return new ResponseVO(taskDOPageVO);

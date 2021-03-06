@@ -2,27 +2,23 @@ package com.dao;
 
 import com.entity.*;
 import com.mongodb.client.result.DeleteResult;
-import com.mongodb.client.result.UpdateResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.aggregation.DateOperators;
 import org.springframework.data.mongodb.core.aggregation.TypedAggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.stream.Task;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
-
-import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
 
 @Repository
@@ -96,17 +92,6 @@ public class MongoDao {
         mongoTemplate.insert(indexParserDO);
     }
 
-    /**
-     * 根据任务名查询任务
-     *
-     * @param taskName
-     * @return
-     */
-    public TaskDO findTaskByName(String taskName) {
-        Query query = new Query(Criteria.where("name").is(taskName));
-        TaskDO one = mongoTemplate.findOne(query, TaskDO.class);
-        return one;
-    }
 
     /**
      * 根据初始url和任务名查询任务
@@ -137,16 +122,6 @@ public class MongoDao {
 
 
     /**
-     * 查询全部任务
-     *
-     * @return
-     */
-    public List<TaskDO> findAll() {
-        return mongoTemplate.findAll(TaskDO.class);
-    }
-
-
-    /**
      * 查询任务,俺时间排序
      * Query query = taskId == null ? new Query() : new Query(Criteria.where("task_id").is(taskId));
      * query.limit(pageSize).skip((pageIndex - 1) * pageSize).with(Sort.by(Sort.Direction.DESC, "ctime"));
@@ -154,7 +129,7 @@ public class MongoDao {
      */
     public List<TaskDO> findTasksByPageIndex(Integer pageIndex, Integer pageSize, String keyWord) {
         Query query = StringUtils.isEmpty(keyWord) ? new Query() : new Query(Criteria.where("name").regex(keyWord));
-        query.limit(pageSize).skip((pageIndex - 1) * pageIndex).with(Sort.by(Sort.Direction.DESC, "op_time"));
+        query.limit(pageSize).skip((pageIndex - 1) * pageSize).with(Sort.by(Sort.Direction.DESC, "op_time"));
         return mongoTemplate.find(query, TaskDO.class);
     }
 
@@ -211,14 +186,26 @@ public class MongoDao {
 
     //--------------------------------------------------------------------
     //article表
-    public List<ArticleDO> findArticleByPage(String taskId, Integer pageIndex, int pageSize) {
-        Query query = taskId == null ? new Query() : new Query(Criteria.where("task_id").is(taskId));
+    public List<ArticleDO> findArticleByPage(String taskId, String keyword, Integer pageIndex, int pageSize) {
+        Query query = StringUtils.isEmpty(taskId) ? new Query() : new Query(Criteria.where("task_id").is(taskId));
+        if (!StringUtils.isEmpty(keyword)) {
+            query.addCriteria(Criteria.where("title").regex(keyword).orOperator(Criteria.where("content").regex(keyword)));
+        }
         query.limit(pageSize).skip((pageIndex - 1) * pageSize).with(Sort.by(Sort.Direction.DESC, "ctime"));
         return mongoTemplate.find(query, ArticleDO.class);
     }
 
-    public long countArticle(String taskId) {
+
+    public List<ArticleDO> findArticleById(String taskId) {
         Query query = taskId == null ? new Query() : new Query(Criteria.where("task_id").is(taskId));
+        return mongoTemplate.find(query, ArticleDO.class);
+    }
+
+    public long countArticle(String taskId, String keyword) {
+        Query query = StringUtils.isEmpty(taskId) ? new Query() : new Query(Criteria.where("task_id").is(taskId));
+        if (!StringUtils.isEmpty(keyword)) {
+            query.addCriteria(Criteria.where("title").regex(keyword).orOperator(Criteria.where("content").regex(keyword)));
+        }
         return mongoTemplate.count(query, ArticleDO.class);
     }
 
@@ -230,6 +217,10 @@ public class MongoDao {
     public Long sizeOfArticle(String taskId) {
         Query query = taskId == null ? new Query() : new Query(Criteria.where("task_id").is(taskId));
         return mongoTemplate.count(query, ArticleDO.class);
+    }
+
+    public ArticleDO findArticleByArticleId(String articleId) {
+        return mongoTemplate.findById(articleId, ArticleDO.class);
     }
 
     /**

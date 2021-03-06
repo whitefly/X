@@ -1,4 +1,4 @@
-package spider.reactor;
+package spider.monitor;
 
 import com.constant.ZKConstant;
 import com.dao.RedisDao;
@@ -11,7 +11,9 @@ import com.constant.RedisConstant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
+import spider.reactor.CrawlReactor;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static com.utils.SystemInfoUtil.NODE_PID;
@@ -65,6 +67,7 @@ public class CommandManager {
 
         info.setWorkState(crawlReactor.isWorkState());
         info.setSysInfo(sysMonitor.getSysInfo());
+        info.setRunTasks(crawlReactor.tasksOnRunning());
         return info;
     }
 
@@ -81,6 +84,9 @@ public class CommandManager {
                 break;
             case Node_Process_Kill:
                 handleKill();
+                break;
+            case Node_Task_Close:
+                handleTaskClose(param);
                 break;
             default:
         }
@@ -104,6 +110,10 @@ public class CommandManager {
         } else if (ZKConstant.Spider_Cluster_Long_ROOT.equals(clusterId)) {
             crawlReactor.changeTaskQueue(RedisConstant.DISPATCHER_LONG_TASK_QUEUE_KEY);
         }
+    }
+
+    private void handleTaskClose(String taskId) {
+        crawlReactor.stopTask(taskId);
     }
 
     private void handleKill() {

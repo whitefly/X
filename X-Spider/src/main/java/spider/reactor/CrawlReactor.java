@@ -6,7 +6,6 @@ import com.dao.MongoDao;
 import com.dao.RedisDao;
 import com.dao.ZkDao;
 import com.google.gson.GsonBuilder;
-import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.RedisSystemException;
 import spider.downloader.ChromeDownloader;
 import com.entity.*;
@@ -27,7 +26,8 @@ import us.codecraft.webmagic.downloader.HttpClientDownloader;
 import us.codecraft.webmagic.processor.PageProcessor;
 
 import javax.annotation.PostConstruct;
-import java.util.Date;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -69,8 +69,10 @@ public class CrawlReactor {
 
     private Thread reactorThread;
 
-
     ExecutorService executorService = Executors.newFixedThreadPool(8);
+
+    //正在执行的任务
+    Map<String, Spider> runningTaskMap = new ConcurrentHashMap<>();
 
 
     @Autowired
@@ -188,15 +190,32 @@ public class CrawlReactor {
         long start = System.currentTimeMillis();
 
 
-        Spider spider = Spider.create(processor)
+        CallbackSpider spider = (CallbackSpider) CallbackSpider.create(processor)
                 .addUrl(task.getStartUrl())
                 .addPipeline(newsHealthPipeLine)
                 .addPipeline(mongoPipeline)
                 .thread(10)
                 .setDownloader(task.isDynamic() ? chromeDownloader : baseDownloader);
 
-        spider.run();
+        spider.setActionWhenStart(() -> {
+            //管理信息加入任务
+            runningTaskMap.put(task.getId(), spider);
+            log.info("task管理集合 添加任务:{} {}", task.getName(), task.getId());
+        });
 
+        spider.setActionWhenStop(() -> {
+            //删除管理信息
+            String id = task.getId();
+            // TODO: 2021/3/6 如果因为错误导致函数没执行,spider数据一直在,怎么办?
+            if (runningTaskMap.containsKey(id)) {
+                runningTaskMap.remove(id);
+                log.info("task管理集合 删除任务:{} {}", task.getName(), task.getId());
+            } else {
+                log.error("task管理集合 没发现应该出现的任务信息,出现bug...{} {}", task.getName(), task.getId());
+            }
+        });
+
+        spider.run();
         long pageCount = spider.getPageCount();
         long end = System.currentTimeMillis();
 
@@ -229,5 +248,19 @@ public class CrawlReactor {
         //zk节点注册
         nodePath = zkDao.registerNode2(clusterRoot, info);
         log.info("注册zk节点:{}", nodePath);
+    }
+
+    public List<String> tasksOnRunning() {
+        return new ArrayList<>(runningTaskMap.keySet());
+    }
+
+    public void stopTask(String taskId) {
+        Spider spider = runningTaskMap.get(taskId);
+        if (spider != null) {
+            log.info("找到对应的任务,正在关闭:{}", taskId);
+            spider.stop();
+        } else {
+            log.warn("未找到对应的任务:{}", taskId);
+        }
     }
 }

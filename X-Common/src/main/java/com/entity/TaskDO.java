@@ -41,4 +41,6 @@ public class TaskDO {
     @Transient
     Date lastRun; //任务上次启动时间
 
+    @Transient
+    String runHost; //现在运行在哪个节点上
 }

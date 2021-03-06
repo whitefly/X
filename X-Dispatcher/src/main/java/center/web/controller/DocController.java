@@ -33,12 +33,15 @@ public class DocController {
         HashMap hashMap = gson.fromJson(params, HashMap.class);
         int pageIndex = ((Double) hashMap.get("pageIndex")).intValue();
         String taskId = (String) hashMap.get("taskId");
+        String keyword = (String) hashMap.get("keyword");
         int pageSize = ((Double) hashMap.get("pageSize")).intValue();
+
 
         if (StringUtils.isEmpty(taskId)) taskId = null;
 
-        List<ArticleDO> docByTaskId = docService.getDocByTaskId(taskId, pageIndex, pageSize);
-        long count = docService.getDocCountByTaskId(taskId);
+        List<ArticleDO> docByTaskId = docService.getDocByTaskId(taskId, keyword, pageIndex, pageSize);
+
+        long count = docService.getDocCountByTaskId(taskId, keyword);
         PageVO<ArticleDO> articleDOPageVO = new PageVO<>(count, docByTaskId);
         return new ResponseVO(articleDOPageVO);
     }
@@ -58,8 +61,10 @@ public class DocController {
         //由于每个任务字段不同,此时要求必须传入taskId;
         log.info(taskId + " " + pageIndex);
         if (StringUtils.isEmpty(taskId)) throw new WebException(SERVICE_DOC_MISS_TASK_ID);
-        List<ArticleDO> articleDOS = docService.getDocByTaskId(taskId, pageIndex, 1);
+        List<ArticleDO> articleDOS = docService.getDocByTaskId(taskId);
         //将ArticleDO转为excel
         convertToExcel(response, articleDOS);
     }
+
+
 }

@@ -13,8 +13,9 @@ public class RedisConstant {
     //task解析过正文的URL合集,用来减少http访问 set
     public static final String TASK_EXTRACTED_URL_KEY_PREFIX = "task_extracted_urls_";
 
-    //任务分发器的启动抓取任务队列 list
-    public static final String QUEUE_KEY = "task_queue";
+    //
+    public static final String TASK_ON_NODE_KEY_PREFIX = "task_on_host_";
+
 
     //任务分发器的任务队列(短任务队列) list
     public static final String DISPATCHER_SHORT_TASK_QUEUE_KEY = "dispatcher_short_task";

@@ -13,7 +13,9 @@ public enum CmdType {
 
     Node_Cluster_Move,
 
-    Node_Process_Kill;
+    Node_Process_Kill,
+
+    Node_Task_Close;
 
 
     public static String genCmdStr(CmdType cmdType, String param) {

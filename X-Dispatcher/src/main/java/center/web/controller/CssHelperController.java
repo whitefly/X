@@ -7,10 +7,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Request;
@@ -34,7 +31,7 @@ public class CssHelperController {
         return "/helper.html";
     }
 
-    @GetMapping(path = "api/proxy")
+    @PostMapping(path = "api/proxy")
     @ResponseBody
     public String proxy(@RequestParam(value = "url") String url, @RequestParam(value = "selenium", defaultValue = "false") boolean selenium) {
         if (!url.startsWith("https://") && !url.startsWith("http://")) {

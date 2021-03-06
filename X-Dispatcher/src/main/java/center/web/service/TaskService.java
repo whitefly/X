@@ -1,5 +1,6 @@
 package center.web.service;
 
+import center.manager.ClusterManager;
 import center.utils.ChromeUtil;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
@@ -39,6 +40,12 @@ public class TaskService {
 
     @Autowired
     private RedisDao redisDao;
+
+    @Autowired
+    private ClusterManager clusterManager;
+
+    @Autowired
+    private DocService docService;
 
 
     public void addTask(TaskDO task, IndexParserDO indexParser) {
@@ -96,14 +103,14 @@ public class TaskService {
         //删除任务,停止dispatcher,抓取结果暂时不删除
         TaskDO task = existTask(taskId);
 
+        //删除采集任务配置
         mongoDao.delTask(task);
         mongoDao.delIndexParser(task.getParserId());
         dispatcher.delTask(task);
 
-        //删除redis中的指纹set
-        String hashKey = RedisConstant.getExtractedKey(taskId);
-        redisDao.delSet(hashKey);
-        log.info("删除redis set:" + hashKey);
+        //删除新闻和指纹
+        docService.clearDoc(taskId);
+
 
         log.info("删除任务[success]:{}", task);
 
@@ -141,22 +148,8 @@ public class TaskService {
         mongoDao.saveAudit(audit);
     }
 
-    public List<TaskDO> getTasks() {
-        List<TaskDO> all = mongoDao.findAll();
 
-        //查询任务的上次启动时间
-        List<String> taskIds = all.stream().map(TaskDO::getId).collect(Collectors.toList());
-        Map<String, CrawlLogDO> lastCrawlInfo = crawlService.getLastCrawlInfo(taskIds);
-        all.forEach(task -> {
-            if (lastCrawlInfo.get(task.getId()) != null) {
-                //防止任务从未启动的情况
-                task.setLastRun(lastCrawlInfo.get(task.getId()).getStartTime());
-            }
-        });
-        return all;
-    }
-
-    public List<TaskDO> getTasks3(Integer pageIndex, Integer pageSize, String keyword) {
+    public List<TaskDO> getTasks(Integer pageIndex, Integer pageSize, String keyword) {
         List<TaskDO> all = mongoDao.findTasksByPageIndex(pageIndex, pageSize, keyword);
 
         //查询任务的上次启动时间
@@ -168,11 +161,14 @@ public class TaskService {
                 task.setLastRun(lastCrawlInfo.get(task.getId()).getStartTime());
             }
         });
+
+        //查询运行在哪个节点上
+        all.forEach(task -> task.setRunHost(clusterManager.getNodeByTaskId(task.getId())));
         return all;
     }
 
     public List<TaskDO> getTasks2(Integer pageIndex, Integer pageSize) {
-        return getTasks3(pageIndex, pageSize, null);
+        return getTasks(pageIndex, pageSize, null);
     }
 
     public long getTaskCount() {

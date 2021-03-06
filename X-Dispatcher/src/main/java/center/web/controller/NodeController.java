@@ -1,21 +1,15 @@
 package center.web.controller;
 
-import center.manager.Cluster;
-import com.constant.ZKConstant;
-import com.dao.RedisDao;
-import com.entity.CrawlNode;
-import com.entity.CrawlNodeInfoVO;
-import com.entity.CrawlNodeInfo;
-import com.entity.ResponseVO;
-import com.google.gson.Gson;
+import center.manager.ClusterManager;
 import center.manager.NodeManager;
+import com.constant.ZKConstant;
+import com.entity.*;
+import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.PostConstruct;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -26,32 +20,24 @@ public class NodeController {
     @Autowired
     NodeManager nodeManager;
 
-
     @Autowired
-    private RedisDao redisDao;
+    ClusterManager clusterManager;
 
     Gson gson = new Gson();
 
     @PostMapping(path = "/all")
     public ResponseVO getAllNodes() {
         List<CrawlNodeInfoVO> result = new ArrayList<>();
-        Map<String, Cluster> clusters = nodeManager.getClusters();
-        for (Map.Entry<String, Cluster> entry : clusters.entrySet()) {
-            Map<String, CrawlNode> nodes = entry.getValue().getNodes();
-
-            List<String> collect = nodes.keySet().stream().map(x -> "state_" + x).collect(Collectors.toList());
-            List<String> states = redisDao.getValueBatch(collect);
-            for (int i = 0; i < collect.size(); i++) {
-                String state = states.get(i);
-                CrawlNodeInfo info = gson.fromJson(state, CrawlNodeInfo.class);
-                CrawlNode crawlNode = nodes.get(collect.get(i).replaceFirst("state_", ""));
-                result.add(new CrawlNodeInfoVO(crawlNode, info, entry.getKey()));
+        Collection<Cluster> clusters = clusterManager.getClusters();
+        for (Cluster c : clusters) {
+            Collection<CrawlNode> nodes = c.getNodes();
+            for (CrawlNode node : nodes) {
+                CrawlNodeInfo state = clusterManager.getState(node);
+                CrawlNodeInfoVO crawlNodeInfoVO = new CrawlNodeInfoVO(node, state, c.getClusterId());
+                result.add(crawlNodeInfoVO);
             }
         }
-
-        //排序
         result.sort((Comparator.comparing(o -> o.getNode().getId())));
-
         return new ResponseVO(result);
     }
 
@@ -76,9 +62,18 @@ public class NodeController {
         HashMap hashMap = gson.fromJson(params, HashMap.class);
         String nodeId = (String) hashMap.get("nodeId");
         String current = (String) hashMap.get("current");
-        System.out.println(current);
         String next = current.equals(ZKConstant.Spider_Cluster_Long_ROOT) ? ZKConstant.Spider_Cluster_Short_ROOT : ZKConstant.Spider_Cluster_Long_ROOT;
-        nodeManager.sendCmdNodeMoveCluster(nodeId, next);
+        nodeManager.sendCmdNodeMove(nodeId, next);
+        return new ResponseVO();
+    }
+
+    @PostMapping(path = "/closeTask")
+    public ResponseVO stopTask(@RequestBody String params) {
+        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        String nodeId = (String) hashMap.get("nodeId");
+        String taskId = (String) hashMap.get("taskId");
+        System.out.println(taskId);
+        nodeManager.sendCmdNodeTaskStop(nodeId, taskId);
         return new ResponseVO();
     }
 

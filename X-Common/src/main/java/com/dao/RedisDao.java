@@ -18,15 +18,6 @@ public class RedisDao {
     private StringRedisTemplate redisTemplate;
 
 
-    public String take() {
-        return take(RedisConstant.QUEUE_KEY);
-    }
-
-    public void put(String key) {
-        ListOperations<String, String> listOp = redisTemplate.opsForList();
-        listOp.leftPush(RedisConstant.QUEUE_KEY, key);
-    }
-
     public String take(String queueKey) {
         ListOperations<String, String> listOp = redisTemplate.opsForList();
         return listOp.rightPop(queueKey, Integer.MAX_VALUE, TimeUnit.SECONDS);
@@ -60,11 +51,13 @@ public class RedisDao {
     public void addSet(String key, String value) {
         SetOperations<String, String> setOp = redisTemplate.opsForSet();
         setOp.add(key, value);
+
     }
 
     public void delSet(String key) {
         redisTemplate.delete(key);
     }
+
 
     public Boolean existInSet(String key, String value) {
         SetOperations<String, String> setOp = redisTemplate.opsForSet();

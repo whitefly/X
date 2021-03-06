@@ -2,6 +2,8 @@ package com.entity;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class CrawlNodeInfo {
     /**
@@ -12,4 +14,5 @@ public class CrawlNodeInfo {
 
     Boolean workState; //是否在监听mq;
     SysInfo sysInfo;
+    List<String> runTasks; //正在运行抓取任务
 }

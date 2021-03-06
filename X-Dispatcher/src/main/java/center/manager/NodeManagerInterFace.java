@@ -1,6 +1,6 @@
 package center.manager;
 
-public interface Manager {
+public interface NodeManagerInterFace {
 
 
     void sendCmdNodeStop(String nodeId);
@@ -9,5 +9,5 @@ public interface Manager {
 
     void sendCmdNodeKill(String nodeId);
 
-    void sendCmdNodeMoveCluster(String nodeId, String clusterId);
+    void sendCmdNodeMove(String nodeId, String clusterId);
 }

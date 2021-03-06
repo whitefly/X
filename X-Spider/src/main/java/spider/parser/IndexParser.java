@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.nodes.Document;
+import spider.utils.ReUtil;
 import spider.utils.TimeUtil;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Request;
@@ -80,12 +81,12 @@ public class IndexParser implements PageProcessor {
         //field为提取连接的xpath
         List<String> indexUrls = null;
 
-        if (rule.getCss() != null) {
+        if (!StringUtils.isEmpty(rule.getCss())) {
             indexUrls = page.getHtml().css(rule.getCss()).links().all();
-        } else if (rule.getXpath() != null) {
+        } else if (!StringUtils.isEmpty(rule.getXpath())) {
             indexUrls = page.getHtml().xpath(rule.getXpath()).links().all();
-        } else if (rule.getRe() != null) {
-            indexUrls = page.getHtml().regex(rule.getRe()).links().all();
+        } else if (!StringUtils.isEmpty(rule.getRe())) {
+            indexUrls = page.getHtml().regex(rule.getRe()).all();
         }
         return indexUrls == null ? Collections.emptyList() : indexUrls;
     }
@@ -171,12 +172,13 @@ public class IndexParser implements PageProcessor {
 
     public static String getValue(Page page, FieldDO f) {
         String result = null;
-        if (f.getCss() != null) {
+        if (!StringUtils.isEmpty(f.getCss())) {
             result = page.getHtml().css(f.getCss()).xpath("allText()").get();
-        } else if (f.getXpath() != null) {
+        } else if (!StringUtils.isEmpty(f.getXpath())) {
             result = page.getHtml().xpath(f.getXpath()).xpath("allText()").get();
-        } else if (f.getRe() != null) {
-            result = page.getHtml().regex(f.getRe()).xpath("allText()").get();
+        } else if (!StringUtils.isEmpty(f.getRe())) {
+            String rawText = page.getRawText();
+            result = ReUtil.regex(f.getRe(), rawText, true);
         } else if (f.getSpecial() != null) {
             result = f.getSpecial();
         }
