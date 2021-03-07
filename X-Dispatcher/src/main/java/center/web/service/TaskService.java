@@ -10,7 +10,6 @@ import center.exception.WebException;
 import spider.parser.TestBodyParser;
 import spider.parser.TestIndexParser;
 import com.utils.FieldUtil;
-import com.constant.RedisConstant;
 import com.utils.UrlUtil;
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 import lombok.extern.slf4j.Slf4j;
@@ -48,20 +47,20 @@ public class TaskService {
     private DocService docService;
 
 
-    public void addTask(TaskDO task, IndexParserDO indexParser) {
+    public void addTask(TaskDO task, NewsParserDO parserConfig) {
         //检查重复,验证cron
         //加入mongo
         //暂时不启动
         task.setId(null);
-        indexParser.setId(null);
+        parserConfig.setId(null);
         task.setActive(false);
 
         checkTaskInfo(task, true);
-        checkParserInfo(indexParser, true);
+        checkParserInfo(parserConfig, true);
 
         task.setOpDate(new Date());
-        mongoDao.saveIndexParser(indexParser);
-        task.setParserId(indexParser.getId());
+        mongoDao.saveNewsParser(parserConfig);
+        task.setParserId(parserConfig.getId());
         mongoDao.saveTask(task);
         log.info("新建任务成功:{}", task);
 
@@ -70,17 +69,18 @@ public class TaskService {
     }
 
 
-    public void updateTask(TaskDO task, IndexParserDO indexParser) {
+    public void updateTask(TaskDO task, NewsParserDO parserConfig) {
         //更新数据库
         //更新Dispatcher,如果Dispatcher不存在,则跳过,否则重新载入
         checkTaskInfo(task, false);
-        checkParserInfo(indexParser, false);
+
+        checkParserInfo(parserConfig, false);
 
         //重新覆盖存入
         task.setActive(false);
         task.setOpDate(new Date());
         mongoDao.updateTask(task);
-        mongoDao.updateIndexParser(indexParser);
+        mongoDao.updateNewsParser(parserConfig);
 
         //删除Dispatcher的定时任务
         dispatcher.delTask(task);
@@ -94,8 +94,8 @@ public class TaskService {
         return mongoDao.findTaskById(taskId);
     }
 
-    public IndexParserDO findIndexParser(String parserId) {
-        return mongoDao.findIndexParserById(parserId);
+    public NewsParserDO findNewsParser(String parserId) {
+        return mongoDao.findNewsParserById(parserId);
     }
 
 
@@ -105,7 +105,7 @@ public class TaskService {
 
         //删除采集任务配置
         mongoDao.delTask(task);
-        mongoDao.delIndexParser(task.getParserId());
+        mongoDao.delNewsParser(task.getParserId());
         dispatcher.delTask(task);
 
         //删除新闻和指纹
@@ -126,7 +126,6 @@ public class TaskService {
         task.setOpDate(new Date());
         task.setActive(false);
         mongoDao.updateTask(task);
-//        mongoDao.updateTaskState(task, false);
 
         // TODO: 2020/12/22 考虑用监听者模式重构,后续可能需要添加功能
         AuditDO audit = new AuditDO("task", "stop", "业务需要", task.getId(), new Date());
@@ -175,29 +174,35 @@ public class TaskService {
         return mongoDao.taskCount();
     }
 
-    private void checkParserInfo(IndexParserDO parser, boolean create) {
+    private void checkParserInfo(NewsParserDO parser, boolean create) {
         if (!create) existIndexParser(parser.getId());
 
-        //允许必要字段的xpath不存在,会进入到自动解析流程
-        if (!FieldUtil.checkParam(
-                parser.getIndexRule()
-//                parser.getTitleRule(),
-//                parser.getContentRule()
-        )) {
-            throw new WebException(SERVICE_PARSER_MISS_MUST_FIELD);
+        //验证extra的格式
+        checkExtraNotEmpty(parser.getExtra());
+
+        //根据配置类型不同 分开进行检查
+        if (parser instanceof IndexParserDO) {
+            IndexParserDO indexParserDO = (IndexParserDO) parser;
+            if (!FieldUtil.checkParamNotEmpty(indexParserDO.getIndexRule())) {
+                throw new WebException(SERVICE_PARSER_MISS_MUST_FIELD);
+            }
         }
 
-        //验证extra的格式
-        checkExtra(parser.getExtra());
+        if (parser instanceof PageParserDO) {
+            PageParserDO parserDO = (PageParserDO) parser;
+            if (!FieldUtil.checkParamNotEmpty(parserDO.getPageRule())) {
+                throw new WebException(SERVICE_PARSER_MISS_MUST_FIELD);
+            }
+        }
     }
 
-    private void checkExtra(List<FieldDO> fields) {
+    private void checkExtraNotEmpty(List<FieldDO> fields) {
         if (!CollectionUtils.isEmpty(fields)) return;
 
         //name必须有,css| xpath | re | special  必须有一个
         for (FieldDO f : fields) {
             if (f.getName() == null) throw new WebException(SERVICE_PARSER_MISS_FIELD_NAME);
-            if (!FieldUtil.checkParam(f.getCss(), f.getXpath(), f.getSpecial(), f.getRe()))
+            if (!FieldUtil.checkParamNotEmpty(f.getCss(), f.getXpath(), f.getSpecial(), f.getRe()))
                 throw new WebException(SERVICE_PARSER_MISS_FIELD_VALUE);
         }
 
@@ -213,7 +218,7 @@ public class TaskService {
         if (!create) old = existTask(task.getId());
 
         //  验证必须的参数是否完整
-        if (!FieldUtil.checkParam(
+        if (!FieldUtil.checkParamNotEmpty(
                 task.getName(),
                 task.getStartUrl(),
                 task.getCron(),
@@ -258,9 +263,9 @@ public class TaskService {
         return taskById;
     }
 
-    private IndexParserDO existIndexParser(String IndexParserId) {
-        if (IndexParserId == null) throw new ValueException("IndexParserId is null !");
-        IndexParserDO parser = mongoDao.findIndexParserById(IndexParserId);
+    private NewsParserDO existIndexParser(String parserId) {
+        if (parserId == null) throw new ValueException("parserId is null !");
+        NewsParserDO parser = mongoDao.findNewsParserById(parserId);
         if (parser == null) throw new WebException(SERVICE_PARSER_NOT_EXIST);
         return parser;
     }
@@ -279,11 +284,11 @@ public class TaskService {
         return rnt;
     }
 
-    public Map<String, Object> testBody(TaskDO task, IndexParserDO indexParser, String targetUrl) {
-        checkParserInfo(indexParser, true);
+    public Map<String, Object> testBody(TaskDO task, NewsParserDO indexParserBO, String targetUrl) {
+        checkParserInfo(indexParserBO, true);
 
         Map<String, Object> rnt = new HashMap<>();
-        TestBodyParser spider = new TestBodyParser(task, indexParser, rnt);
+        TestBodyParser spider = new TestBodyParser(task, indexParserBO, rnt);
         Spider.create(spider).addUrl(targetUrl).thread(1).run();
         return rnt;
     }

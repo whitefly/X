@@ -1,10 +1,10 @@
 package center.web.controller;
 
-import com.entity.*;
 import center.exception.WebException;
+import center.web.service.TaskService;
+import com.entity.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import center.web.service.TaskService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +32,7 @@ public class TaskController {
     public ResponseVO createTask(@RequestBody String params) {
         TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
-        IndexParserDO parser = taskEditVO.getParser();
+        NewsParserDO parser = taskEditVO.getParser();
         taskService.addTask(task, parser);
         return new ResponseVO();
     }
@@ -64,7 +64,7 @@ public class TaskController {
     public ResponseVO updateTask(@RequestBody String params) {
         TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
-        IndexParserDO parser = taskEditVO.getParser();
+        NewsParserDO parser = taskEditVO.getParser();
 
 
         taskService.updateTask(task, parser);
@@ -99,7 +99,7 @@ public class TaskController {
         String taskId = (String) map.get("taskId");
         TaskDO task = taskService.findTask(taskId);
         if (task == null) throw new WebException(SERVICE_TASK_NOT_EXIST);
-        IndexParserDO indexParser = taskService.findIndexParser(task.getParserId());
+        NewsParserDO indexParser = taskService.findNewsParser(task.getParserId());
         TaskEditVO taskEditVO = new TaskEditVO();
         taskEditVO.setTask(task);
         taskEditVO.setParser(indexParser);
@@ -116,10 +116,14 @@ public class TaskController {
     public ResponseVO testIndex(@RequestBody String params) {
         TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
-        IndexParserDO parser = taskEditVO.getParser();
-
-        List<String> links = taskService.testIndex(task, parser);
-        return new ResponseVO(links);
+        NewsParserDO parser = taskEditVO.getParser();
+        if (parser instanceof IndexParserDO) {
+            IndexParserDO indexParser = (IndexParserDO) parser;
+            List<String> links = taskService.testIndex(task, indexParser);
+            return new ResponseVO(links);
+        } else {
+            return new ResponseVO();
+        }
     }
 
     /**
@@ -131,9 +135,15 @@ public class TaskController {
     public ResponseVO testBody(@RequestBody String params) {
         TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
-        IndexParserDO parser = taskEditVO.getParser();
-        String url = taskEditVO.getTargetUrl();
-        Map<String, Object> rnt = taskService.testBody(task, parser, url);
-        return new ResponseVO(rnt);
+        NewsParserDO parser = taskEditVO.getParser();
+
+        if (parser instanceof IndexParserDO) {
+            IndexParserDO indexParser = (IndexParserDO) parser;
+            String url = taskEditVO.getTargetUrl();
+            Map<String, Object> rnt = taskService.testBody(task, indexParser, url);
+            return new ResponseVO(rnt);
+        } else {
+            return new ResponseVO();
+        }
     }
 }

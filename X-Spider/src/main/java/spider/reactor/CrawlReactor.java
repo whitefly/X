@@ -10,6 +10,7 @@ import org.springframework.data.redis.RedisSystemException;
 import spider.downloader.ChromeDownloader;
 import com.entity.*;
 import com.google.gson.Gson;
+import spider.parser.CustomParser;
 import spider.parser.EpaperParser;
 import spider.parser.IndexParser;
 import spider.parser.PageParser;
@@ -110,16 +111,18 @@ public class CrawlReactor {
     }
 
 
-    private PageProcessor genPageProcessor(TaskDO task, IndexParserDO parser) {
+    private static PageProcessor genPageProcessor(TaskDO task, NewsParserDO parser) {
         //根据不同的类型,封装好不同的爬虫实例
         PageProcessor processor = null;
         String parserType = task.getParserType();
         if ("IndexParser".equals(parserType)) {
-            processor = new IndexParser(task, parser);
+            processor = new IndexParser(task, (IndexParserDO) parser);
         } else if ("电子报Parser".equals(parserType)) {
             processor = new EpaperParser(task, (EpaperParserDO) parser);
         } else if ("PageParser".equals(parserType)) {
             processor = new PageParser(task, (PageParserDO) parser);
+        } else if ("CustomParser".equals(parserType)) {
+            processor = new CustomParser(task, (CustomParserDO) parser);
         }
         return processor;
     }
@@ -161,7 +164,7 @@ public class CrawlReactor {
             String taskEditVO = redisDao.take(taskQueue);
             TaskEditVO taskEditVO1 = gson.fromJson(taskEditVO, TaskEditVO.class);
             TaskDO task = taskEditVO1.getTask();
-            IndexParserDO parser = taskEditVO1.getParser();
+            NewsParserDO parser = taskEditVO1.getParser();
             PageProcessor processor = genPageProcessor(task, parser);
             log.info("获取即将启动爬虫的基本信息:{}", task);
 
@@ -207,6 +210,7 @@ public class CrawlReactor {
             //删除管理信息
             String id = task.getId();
             // TODO: 2021/3/6 如果因为错误导致函数没执行,spider数据一直在,怎么办?
+            //若没有执行,则说明spider就没有退出.退出必然会执行这个
             if (runningTaskMap.containsKey(id)) {
                 runningTaskMap.remove(id);
                 log.info("task管理集合 删除任务:{} {}", task.getName(), task.getId());

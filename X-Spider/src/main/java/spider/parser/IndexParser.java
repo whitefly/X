@@ -2,32 +2,26 @@ package spider.parser;
 
 import com.constant.RedisConstant;
 import com.dao.RedisDao;
-import com.entity.*;
-import lombok.Setter;
-import spider.utils.AutoExtractor;
+import com.entity.FieldDO;
+import com.entity.IndexParserDO;
+import com.entity.TaskDO;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.jsoup.nodes.Document;
-import spider.utils.ReUtil;
-import spider.utils.TimeUtil;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Request;
 import us.codecraft.webmagic.Site;
-import us.codecraft.webmagic.processor.PageProcessor;
-import us.codecraft.webmagic.selector.Html;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.utils.FieldUtil.isFieldEmpty;
-
 @Slf4j
-public class IndexParser implements PageProcessor {
+public class IndexParser extends NewsParser {
 
-    @Getter
-    TaskDO taskInfo;
 
     @Getter
     IndexParserDO indexParser;
@@ -45,7 +39,7 @@ public class IndexParser implements PageProcessor {
 
 
     public IndexParser(TaskDO taskInfo, IndexParserDO indexParser) {
-        this.taskInfo = taskInfo;
+        super(taskInfo, indexParser);
         this.indexParser = indexParser;
     }
 
@@ -58,13 +52,8 @@ public class IndexParser implements PageProcessor {
             if (!CollectionUtils.isEmpty(urls)) page.addTargetRequests(urls);
             page.setSkip(true);
         } else {
-            //正文页面
-            ArticleDO articleDO = parseArticle(page, indexParser);
-            if (indexParser.getExtra() != null) {
-                articleDO.setExtra(parseExtra(page, indexParser));
-            }
-            //把整个对象放入map中的ArticleDO中,在pipeline去存出
-            page.putField("ArticleDO", articleDO);
+            //正文页面,交给正文处理器搞定
+            super.process(page);
         }
     }
 
@@ -96,95 +85,6 @@ public class IndexParser implements PageProcessor {
         return convert2AliasRequest(linksByField, alias);
     }
 
-    public static ArticleDO parseArticle(Page page, NewsParserBO parserDetail) {
-        FieldDO titleRule = parserDetail.getTitleRule();
-        FieldDO contentRule = parserDetail.getContentRule();
-        FieldDO timeRule = parserDetail.getTimeRule();
-        ArticleDO articleDO = null;
-
-        if (isFieldEmpty(titleRule) || isFieldEmpty(contentRule) || isFieldEmpty(timeRule)) {
-            //若必要字段xpath缺失,则采用自动提取
-            articleDO = autoParse(page);
-        }
-
-        if (articleDO == null) {
-            articleDO = new ArticleDO();
-        }
-
-        //填充用户填写的字段
-        if (!isFieldEmpty(contentRule)) articleDO.setContent(getValue(page, contentRule));
-        if (!isFieldEmpty(titleRule)) articleDO.setTitle(getValue(page, titleRule));
-        if (!isFieldEmpty(timeRule)) {
-            String value = getValue(page, timeRule);
-            //从用户选择的内容中提取时间
-            String s = TimeUtil.extractTimeStr(value);
-            Date date = TimeUtil.convert2Date(s);
-            articleDO.setPtime(date);
-        }
-
-        //若时间为空,则用现在的时间替代
-        if (articleDO.getPtime() == null) {
-            articleDO.setPtime(new Date());
-        }
-
-        articleDO.setCtime(new Date());
-
-        return articleDO;
-    }
-
-    public static ArticleDO autoParse(Page page) {
-        Document document = page.getHtml().getDocument();
-        ArticleDO result = new ArticleDO();
-        try {
-            AutoExtractor.News news = AutoExtractor.getNewsByDoc(document);
-            result.setTitle(news.getTitle());
-
-            String text = news.getContentElement().text();
-            if (text != null) {
-                text = new Html(news.getContentElement().text()).xpath("tidyText()").get();
-            }
-            result.setContent(text);
-            //转换字符串时间为date格式
-            Date date = TimeUtil.convert2Date(news.getTime());
-
-            //若无法解析,则从整个html中匹配时间
-            if (date == null) {
-                date = TimeUtil.convert2Date(TimeUtil.extractTimeStr(page.getRawText()));
-            }
-
-            result.setPtime(date);
-            return result;
-        } catch (Exception e) {
-            log.error("自动解析失败:" + page.getUrl(), e);
-        }
-        return null;
-    }
-
-
-    public static Map<String, Object> parseExtra(Page page, NewsParserBO parserDetail) {
-        Map<String, Object> item = new HashMap<>();
-        if (parserDetail.getExtra() == null) return item;
-        for (FieldDO f : parserDetail.getExtra()) {
-            item.put(f.getName(), getValue(page, f));
-        }
-        return item;
-    }
-
-    public static String getValue(Page page, FieldDO f) {
-        String result = null;
-        if (!StringUtils.isEmpty(f.getCss())) {
-            result = page.getHtml().css(f.getCss()).xpath("allText()").get();
-        } else if (!StringUtils.isEmpty(f.getXpath())) {
-            result = page.getHtml().xpath(f.getXpath()).xpath("allText()").get();
-        } else if (!StringUtils.isEmpty(f.getRe())) {
-            String rawText = page.getRawText();
-            result = ReUtil.regex(f.getRe(), rawText, true);
-        } else if (f.getSpecial() != null) {
-            result = f.getSpecial();
-        }
-        if (result != null) return result.trim();
-        return null;
-    }
 
     /**
      * 给Request设置深度,方便调用不同的解析函数.大致模仿回调的感觉

@@ -15,10 +15,6 @@ import java.util.regex.Pattern;
 public class TaskUtil {
     static Pattern URL_PAT = Pattern.compile("^(http(s)?:\\/\\/)?([\\w-]+\\.)+[\\w-]+(:\\d{2,5})?(\\/?\\#?[\\w-.\\/?%&=]*)?$");
 
-
-
-
-
     public static String change2AbsUrl(String html, URL u) {
         //将相对连接,都变为绝对连接,处理标签为 a,link, script
 

@@ -6,7 +6,7 @@ import org.springframework.util.StringUtils;
 import java.util.Arrays;
 
 public class FieldUtil {
-    public static boolean checkParam(Object... params) {
+    public static boolean checkParamNotEmpty(Object... params) {
         return Arrays.stream(params).allMatch(x -> {
             if (x instanceof FieldDO) {
                 return !isFieldEmpty((FieldDO) x);

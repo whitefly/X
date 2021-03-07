@@ -1,13 +1,11 @@
 package center.dispatch;
 
 
+import com.constant.QueueForTask;
 import com.constant.RedisConstant;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
-import com.entity.DispatchLogDO;
-import com.entity.IndexParserDO;
-import com.entity.TaskDO;
-import com.entity.TaskEditVO;
+import com.entity.*;
 import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.Setter;
@@ -52,19 +50,22 @@ public class Dispatcher {
         @SneakyThrows
         @Override
         public void execute(JobExecutionContext jobExecutionContext) {
-            // TODO: 2021/3/3 直接通过redis发送 task和解析器,避免下游重复查询mongodb
             RedisDao redisDao = (RedisDao) jobExecutionContext.getScheduler().getContext().get("redisDao");
             MongoDao mongoDao = (MongoDao) jobExecutionContext.getScheduler().getContext().get("mongoDao");
 
 
-            // TODO: 2021/3/4 后期需要更加灵活配置,这里先写死
-            String queue = "PageParser".equals(taskType) ? RedisConstant.DISPATCHER_LONG_TASK_QUEUE_KEY : RedisConstant.DISPATCHER_SHORT_TASK_QUEUE_KEY;
-            redisDao.put(queue, fullCrawlData);
+            String queueName = QueueForTask.queueForTask.get(taskType);
+            if (queueName == null) queueName = RedisConstant.DISPATCHER_SHORT_TASK_QUEUE_KEY;
 
+
+            //发送任务消息
+            redisDao.put(queueName, fullCrawlData);
 
             //保存到mongoDB
             LocalTime now = LocalTime.now();
-            log.info("time: {}  push taskId :{}   name:{} to {}", now, taskId, taskName, queue);
+
+            // TODO: 2021/3/8 这里是并发量最大的地方,每次都发送mongo请求太耗了,未来尝试5s或者攒50个发送日志
+            log.info("time: {}  push taskId :{}   name:{} to {}", now, taskId, taskName, queueName);
             DispatchLogDO dispatchLogDO = new DispatchLogDO(taskName, taskId, Date.from(Instant.now()));
             mongoDao.saveDispatchLog(dispatchLogDO);
         }
@@ -94,15 +95,15 @@ public class Dispatcher {
         String taskJobKey = getTaskJobKey(task);
         String triggerKey = getTriggerJobKey(task);
         //获取解析器
-        IndexParserDO indexParser = mongoDao.findIndexParserById(task.getParserId());
+        NewsParserDO parserConfig = mongoDao.findNewsParserById(task.getParserId());
 
         //任务整体信息
         TaskEditVO taskEditVO = new TaskEditVO();
         taskEditVO.setTask(task);
-        taskEditVO.setParser(indexParser);
+        taskEditVO.setParser(parserConfig);
 
         //为了下游好序列化,设置type
-        if (indexParser.getType() == null) indexParser.setType(task.getParserType());
+        if (parserConfig.getType() == null) parserConfig.setType(task.getParserType());
 
         String fullCrawlData = gson.toJson(taskEditVO);
 

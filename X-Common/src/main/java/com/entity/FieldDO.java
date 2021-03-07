@@ -25,4 +25,6 @@ public class FieldDO {
 
     @Field("special")
     private String special;
+
+    private String alias;
 }

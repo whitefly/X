@@ -6,7 +6,7 @@ import lombok.Data;
 public class TaskEditVO {
     TaskDO task;
 
-    IndexParserDO parser;
+    NewsParserDO parser;
 
     String targetUrl;
 }

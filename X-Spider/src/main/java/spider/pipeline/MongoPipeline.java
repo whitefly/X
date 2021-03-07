@@ -10,6 +10,7 @@ import com.constant.RedisConstant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import spider.parser.NewsParser;
 import us.codecraft.webmagic.ResultItems;
 import us.codecraft.webmagic.Spider;
 import us.codecraft.webmagic.Task;
@@ -57,8 +58,8 @@ public class MongoPipeline implements Pipeline {
                 Field pageProcessor = Spider.class.getDeclaredField("pageProcessor");
                 pageProcessor.setAccessible(true);
                 PageProcessor pageProcessor1 = (PageProcessor) pageProcessor.get(task);
-                if (pageProcessor1 instanceof IndexParser) {
-                    IndexParser indexParser = (IndexParser) pageProcessor1;
+                if (pageProcessor1 instanceof NewsParser) {
+                    NewsParser indexParser = (NewsParser) pageProcessor1;
                     return indexParser.getTaskInfo();
                 }
             } catch (NoSuchFieldException | IllegalAccessException e) {

@@ -1,7 +1,6 @@
 package spider.parser;
 
 import com.entity.ArticleDO;
-import com.entity.IndexParserDO;
 import com.entity.PageParserDO;
 import com.entity.TaskDO;
 import us.codecraft.webmagic.Page;
@@ -41,8 +40,7 @@ public class PageParser extends IndexParser {
             newUrls.forEach(page::addTargetRequest);
             otherUrls.forEach(page::addTargetRequest);
         } else if ("newUrls".equals(getAlias(page.getRequest()))) {
-            ArticleDO articleDO = parseArticle(page, indexParser);
-            articleDO.setExtra(parseExtra(page, indexParser));
+            ArticleDO articleDO = NewsParser.parseArticle(page, indexParser);
 
             //把整个对象放入map中的ArticleDO中,在pipeline去存出
             page.putField("ArticleDO", articleDO);

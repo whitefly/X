@@ -2,12 +2,14 @@ package com.entity;
 
 import lombok.Data;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.List;
 
 @Data
-public class NewsParserBO {
+@Document("parser")
+public class NewsParserDO {
     @Id
     String id;
 
@@ -22,5 +24,7 @@ public class NewsParserBO {
 
     @Field("extra")
     List<FieldDO> extra; //其他额外的抓取属性
+
+    String type;//用来反序列化是使用,平时用不到
 
 }

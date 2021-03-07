@@ -30,10 +30,13 @@ public class NewsHealthPipeLine implements Pipeline {
         String content = article.getContent();
         Map<String, Object> extra = article.getExtra();
         boolean extraMiss = false;
-        for (Map.Entry<String, Object> item : extra.entrySet()) {
-            if (StringUtils.isEmpty(item.getValue())) {
-                extraMiss = true;
-                break;
+
+        if (extra != null) {
+            for (Map.Entry<String, Object> item : extra.entrySet()) {
+                if (StringUtils.isEmpty(item.getValue())) {
+                    extraMiss = true;
+                    break;
+                }
             }
         }
 

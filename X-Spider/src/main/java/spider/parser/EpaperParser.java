@@ -38,8 +38,7 @@ public class EpaperParser extends IndexParser {
             page.setSkip(true);
         } else if ("3级页面".equals(getAlias(page.getRequest()))) {
             //三级级页面
-            ArticleDO articleDO = parseArticle(page, epaperParser);
-            articleDO.setExtra(parseExtra(page, epaperParser));
+            ArticleDO articleDO = NewsParser.parseArticle(page, epaperParser);
             //把整个对象放入map中的ArticleDO中,在pipeline去存出
             page.putField("ArticleDO", articleDO);
         } else {

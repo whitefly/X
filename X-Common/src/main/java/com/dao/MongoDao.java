@@ -86,10 +86,10 @@ public class MongoDao {
     /**
      * 通用save方法
      *
-     * @param indexParserDO
+     * @param parserConfig
      */
-    public void saveIndexParser(IndexParserDO indexParserDO) {
-        mongoTemplate.insert(indexParserDO);
+    public void saveNewsParser(NewsParserDO parserConfig) {
+        mongoTemplate.insert(parserConfig);
     }
 
 
@@ -161,17 +161,17 @@ public class MongoDao {
 
     //-------------------------------------------------------------------------------
     //Parser表
-    public IndexParserDO findIndexParserById(String id) {
-        return mongoTemplate.findById(id, IndexParserDO.class);
+    public NewsParserDO findNewsParserById(String id) {
+        return mongoTemplate.findById(id, NewsParserDO.class);
     }
 
-    public void updateIndexParser(IndexParserDO indexParser) {
+    public void updateNewsParser(NewsParserDO indexParser) {
         mongoTemplate.save(indexParser);
     }
 
-    public boolean delIndexParser(String id) {
+    public boolean delNewsParser(String id) {
         Query query = new Query(Criteria.where("id").is(id));
-        DeleteResult remove = mongoTemplate.remove(query, IndexParserDO.class);
+        DeleteResult remove = mongoTemplate.remove(query, NewsParserDO.class);
         return remove.getDeletedCount() >= 1;
     }
 
@@ -180,7 +180,7 @@ public class MongoDao {
      *
      * @return
      */
-    public Object findIndexParserById(String id, Class<? extends IndexParserDO> t) {
+    public Object findNewsParserById(String id, Class<? extends IndexParserDO> t) {
         return mongoTemplate.findById(id, t);
     }
 

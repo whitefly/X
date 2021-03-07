@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -47,22 +48,25 @@ public class DocService {
 
         Pattern urlPat = Pattern.compile("(https?.+?\\.(jpg|png|jpeg|gif))");
         List<String> urls = new ArrayList<>();
-        for (Map.Entry<String, Object> item : extra.entrySet()) {
-            Object value = item.getValue();
-            if (value instanceof String) {
-                Matcher matcher = urlPat.matcher((String) value);
-                while (matcher.find()) {
-                    urls.add(matcher.group());
+        List<String> collect = null;
+        if (extra != null) {
+            for (Map.Entry<String, Object> item : extra.entrySet()) {
+                Object value = item.getValue();
+                if (value instanceof String) {
+                    Matcher matcher = urlPat.matcher((String) value);
+                    while (matcher.find()) {
+                        urls.add(matcher.group());
+                    }
                 }
             }
+            //替换为img标签
+            collect = urls.stream().map(x -> {
+                Matcher matcher = urlPat.matcher(x);
+                return matcher.replaceAll("<img src='$1'>");
+            }).collect(Collectors.toList());
         }
-        //替换为img标签
-        List<String> collect = urls.stream().map(x -> {
-            Matcher matcher = urlPat.matcher(x);
-            return matcher.replaceAll("<img src='$1'>");
-        }).collect(Collectors.toList());
 
-        return collect;
+        return collect == null ? Collections.emptyList() : collect;
     }
 
 
