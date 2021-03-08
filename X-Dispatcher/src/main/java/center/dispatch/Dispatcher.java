@@ -95,18 +95,7 @@ public class Dispatcher {
         String taskJobKey = getTaskJobKey(task);
         String triggerKey = getTriggerJobKey(task);
         //获取解析器
-        NewsParserDO parserConfig = mongoDao.findNewsParserById(task.getParserId());
-
-        //任务整体信息
-        TaskEditVO taskEditVO = new TaskEditVO();
-        taskEditVO.setTask(task);
-        taskEditVO.setParser(parserConfig);
-
-        //为了下游好序列化,设置type
-        if (parserConfig.getType() == null) parserConfig.setType(task.getParserType());
-
-        String fullCrawlData = gson.toJson(taskEditVO);
-
+        String fullCrawlData = genFullCrawlData(task);
 
         try {
             //设定上传任务
@@ -130,6 +119,20 @@ public class Dispatcher {
         } catch (SchedulerException e) {
             e.printStackTrace();
         }
+    }
+
+    public String genFullCrawlData(TaskDO task) {
+        NewsParserDO parserConfig = mongoDao.findNewsParserById(task.getParserId());
+
+        //任务整体信息
+        TaskEditVO taskEditVO = new TaskEditVO();
+        taskEditVO.setTask(task);
+        taskEditVO.setParser(parserConfig);
+
+        //为了下游好序列化,设置type
+        if (parserConfig.getType() == null) parserConfig.setType(task.getParserType());
+
+        return gson.toJson(taskEditVO);
     }
 
 

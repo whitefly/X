@@ -47,7 +47,7 @@ public class DashboardController {
         });
         DataPlusVO dataPlusVO = new DataPlusVO(date, count);
         long newsCount = docService.getDocCountByTaskId(null, null);
-        long taskCount = taskService.getTaskCount();
+        long taskCount = taskService.getTaskCount(null, null);
         long nodeCount = manager.getNodeCount();
 
 

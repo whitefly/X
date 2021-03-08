@@ -1,5 +1,6 @@
 package center.web.controller;
 
+import center.exception.ErrorCode;
 import center.exception.WebException;
 import center.web.service.TaskService;
 import com.entity.*;
@@ -8,6 +9,7 @@ import com.google.gson.GsonBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import spider.parser.CustomParser;
 
 import java.util.List;
 import java.util.Map;
@@ -85,10 +87,18 @@ public class TaskController {
         return new ResponseVO();
     }
 
+    @PostMapping(path = "/tempStart")
+    public ResponseVO tempStart(@RequestBody String params) {
+        Map map = gson.fromJson(params, Map.class);
+        String taskId = (String) map.get("taskId");
+        taskService.temporaryStart(taskId);
+        return new ResponseVO();
+    }
+
     @GetMapping(path = "/list")
-    public ResponseVO taskList1(@RequestParam(value = "name") String name, @RequestParam(value = "pageIndex") Integer pageIndex, @RequestParam(value = "pageSize") Integer pageSize) {
-        List<TaskDO> tasks = taskService.getTasks(pageIndex, pageSize, name);
-        long taskCount = taskService.getTaskCount();
+    public ResponseVO taskList1(@RequestParam(value = "parseType", required = false) String parseType, @RequestParam(value = "name", required = false) String name, @RequestParam(value = "pageIndex") Integer pageIndex, @RequestParam(value = "pageSize") Integer pageSize) {
+        List<TaskDO> tasks = taskService.getTasks(pageIndex, pageSize, name, parseType);
+        long taskCount = taskService.getTaskCount(name, parseType);
         PageVO<TaskDO> taskDOPageVO = new PageVO<>(taskCount, tasks);
         return new ResponseVO(taskDOPageVO);
     }
@@ -122,7 +132,7 @@ public class TaskController {
             List<String> links = taskService.testIndex(task, indexParser);
             return new ResponseVO(links);
         } else {
-            return new ResponseVO();
+            return new ResponseVO(ErrorCode.SERVICE_ERROR);
         }
     }
 
@@ -137,13 +147,26 @@ public class TaskController {
         TaskDO task = taskEditVO.getTask();
         NewsParserDO parser = taskEditVO.getParser();
 
-        if (parser instanceof IndexParserDO) {
-            IndexParserDO indexParser = (IndexParserDO) parser;
+        if (parser != null) {
             String url = taskEditVO.getTargetUrl();
-            Map<String, Object> rnt = taskService.testBody(task, indexParser, url);
+            Map<String, Object> rnt = taskService.testBody(task, parser, url);
             return new ResponseVO(rnt);
         } else {
-            return new ResponseVO();
+            return new ResponseVO(ErrorCode.SERVICE_ERROR);
+        }
+    }
+
+    @PostMapping(path = "/test/CustomParse")
+    public ResponseVO testCustom(@RequestBody String params) {
+        TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
+        TaskDO task = taskEditVO.getTask();
+        NewsParserDO parser = taskEditVO.getParser();
+        if (parser instanceof CustomParserDO) {
+            CustomParserDO customParser = (CustomParserDO) parser;
+            CustomTestInfo customTestInfo = taskService.testCustom(task, customParser);
+            return new ResponseVO(customTestInfo);
+        } else {
+            return new ResponseVO(ErrorCode.SERVICE_ERROR);
         }
     }
 }

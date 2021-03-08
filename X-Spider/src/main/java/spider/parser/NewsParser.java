@@ -18,6 +18,7 @@ import us.codecraft.webmagic.selector.Html;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.utils.FieldUtil.isFieldEmpty;
@@ -114,7 +115,7 @@ public class NewsParser implements PageProcessor {
             result.setPtime(date);
             return result;
         } catch (Exception e) {
-            log.error("自动解析失败:" + page.getUrl(), e);
+            log.error("自动解析失败:" + page.getUrl());
         }
         return null;
     }
@@ -122,9 +123,11 @@ public class NewsParser implements PageProcessor {
     public static String getValue(Page page, FieldDO f) {
         String result = null;
         if (!StringUtils.isEmpty(f.getCss())) {
-            result = page.getHtml().css(f.getCss()).xpath("allText()").get();
+            List<String> all = page.getHtml().css(f.getCss()).xpath("allText()").all();
+            result = all != null ? String.join("\n", all) : null;
         } else if (!StringUtils.isEmpty(f.getXpath())) {
-            result = page.getHtml().xpath(f.getXpath()).xpath("allText()").get();
+            List<String> all = page.getHtml().xpath(f.getXpath()).xpath("allText()").all();
+            result = all != null ? String.join("\n", all) : null;
         } else if (!StringUtils.isEmpty(f.getRe())) {
             String rawText = page.getRawText();
             result = ReUtil.regex(f.getRe(), rawText, true);

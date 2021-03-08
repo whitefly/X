@@ -14,7 +14,7 @@ import java.util.Map;
 @Slf4j
 public class CustomParser extends NewsParser {
     //初始url的别名就是叫 首页,需要和前端对齐
-    private static final String firstAlias = "首页";
+    static final String firstAlias = "首页";
 
     CustomParserDO customParser;
 
@@ -40,7 +40,7 @@ public class CustomParser extends NewsParser {
         }
     }
 
-    private void executeOneStep(Page page, StepDO step) {
+    String executeOneStep(Page page, StepDO step) {
         if (step.isExtract()) {
             ArticleDO articleDO = NewsParser.parseArticle(page, customParser);
             page.putField("ArticleDO", articleDO);
@@ -58,7 +58,8 @@ public class CustomParser extends NewsParser {
             }
             result.put(f.getAlias(), count);
         }
-        log.info("类型[{}]:{}  下一步为:{}", step.getAlias(), page.getRequest().getUrl(), result);
+        log.info("网页类型[{}]:{}  后序分支:{}", step.getAlias(), page.getRequest().getUrl(), result);
+        return String.format("网页类型[%s]:{%s}  后序分支:%s", step.getAlias(), page.getRequest().getUrl(), result);
     }
 
     @Override

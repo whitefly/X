@@ -170,7 +170,6 @@ public class AutoExtractor {
             contentElement = getContentElement();
             news.setContentElement(contentElement);
         } catch (Exception ex) {
-            LOG.info("news content extraction failed,extraction abort", ex);
             throw new Exception(ex);
         }
 

@@ -3,6 +3,7 @@ package center.exception;
 public enum ErrorCode implements BaseErrorInterface {
 
     OK(0, "OK"),
+    SERVICE_ERROR(1, "出错了"),
 
     SERVICE_TASK_CREATE_NAME_DUP(101, "新建任务名重复"),
     SERVICE_TASK_CREATE_URL_DUP(102, "新建任务start_url重复"),

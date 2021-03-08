@@ -1,13 +1,16 @@
 package center.web.service;
 
 import center.manager.ClusterManager;
-import center.utils.ChromeUtil;
+import center.utils.DynamicUtil;
+import com.constant.QueueForTask;
+import com.constant.RedisConstant;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
 import center.dispatch.Dispatcher;
 import com.entity.*;
 import center.exception.WebException;
 import spider.parser.TestBodyParser;
+import spider.parser.TestCustomParser;
 import spider.parser.TestIndexParser;
 import com.utils.FieldUtil;
 import com.utils.UrlUtil;
@@ -17,8 +20,11 @@ import org.apache.commons.collections.CollectionUtils;
 import org.quartz.CronExpression;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import spider.pipeline.NothingPipeline;
 import us.codecraft.webmagic.Spider;
 
+import java.time.Instant;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -141,15 +147,32 @@ public class TaskService {
         task.setActive(true);
         task.setOpDate(new Date());
         mongoDao.updateTask(task);
-//        mongoDao.updateTaskState(task, true);
 
         AuditDO audit = new AuditDO("task", "start", "业务需要", task.getId(), new Date());
         mongoDao.saveAudit(audit);
     }
 
+    public void temporaryStart(String taskId) {
+        //临时启动一次
+        TaskDO task = existTask(taskId);
 
-    public List<TaskDO> getTasks(Integer pageIndex, Integer pageSize, String keyword) {
-        List<TaskDO> all = mongoDao.findTasksByPageIndex(pageIndex, pageSize, keyword);
+        String fullCrawData = dispatcher.genFullCrawlData(task);
+        String queueName = QueueForTask.queueForTask.get(task.getParserType());
+        if (queueName == null) queueName = RedisConstant.DISPATCHER_SHORT_TASK_QUEUE_KEY;
+
+        //发送任务消息
+        redisDao.put(queueName, fullCrawData);
+
+        //日志记录
+        log.info("time: {}  push taskId :{}   name:{} to {}", LocalTime.now(), taskId, task.getName(), queueName);
+        DispatchLogDO dispatchLogDO = new DispatchLogDO(task.getName(), taskId, Date.from(Instant.now()));
+        dispatchLogDO.setExtra("临时启动");
+        mongoDao.saveDispatchLog(dispatchLogDO);
+    }
+
+
+    public List<TaskDO> getTasks(Integer pageIndex, Integer pageSize, String keyword, String parseType) {
+        List<TaskDO> all = mongoDao.findTasksByPageIndex(pageIndex, pageSize, keyword, parseType);
 
         //查询任务的上次启动时间
         List<String> taskIds = all.stream().map(TaskDO::getId).collect(Collectors.toList());
@@ -166,12 +189,8 @@ public class TaskService {
         return all;
     }
 
-    public List<TaskDO> getTasks2(Integer pageIndex, Integer pageSize) {
-        return getTasks(pageIndex, pageSize, null);
-    }
-
-    public long getTaskCount() {
-        return mongoDao.taskCount();
+    public long getTaskCount(String taskName, String parseType) {
+        return mongoDao.taskCount(taskName, parseType);
     }
 
     private void checkParserInfo(NewsParserDO parser, boolean create) {
@@ -276,9 +295,9 @@ public class TaskService {
         List<String> rnt = new ArrayList<>();
         TestIndexParser spider = new TestIndexParser(task, indexParser, rnt);
         //抓取单页面
-        Spider app = Spider.create(spider).addUrl(task.getStartUrl()).thread(1);
+        Spider app = Spider.create(spider).addUrl(task.getStartUrl()).addPipeline(new NothingPipeline()).thread(1);
         if (task.isDynamic()) {
-            app.setDownloader(ChromeUtil.chromeDownloader);
+            app.setDownloader(DynamicUtil.dynamicDownloader);
         }
         app.run();
         return rnt;
@@ -289,7 +308,21 @@ public class TaskService {
 
         Map<String, Object> rnt = new HashMap<>();
         TestBodyParser spider = new TestBodyParser(task, indexParserBO, rnt);
-        Spider.create(spider).addUrl(targetUrl).thread(1).run();
+        Spider.create(spider).addUrl(targetUrl).thread(1).addPipeline(new NothingPipeline()).run();
         return rnt;
+    }
+
+    public CustomTestInfo testCustom(TaskDO task, CustomParserDO parserBO) {
+        checkParserInfo(parserBO, true);
+
+        CustomTestInfo testInfo = new CustomTestInfo(new ArrayList<>(), new ArrayList<>());
+
+        TestCustomParser spider = new TestCustomParser(task, parserBO, testInfo);
+        Spider app = Spider.create(spider).addUrl(task.getStartUrl()).thread(1).addPipeline(new NothingPipeline());
+        if (task.isDynamic()) {
+            app.setDownloader(DynamicUtil.dynamicDownloader);
+        }
+        app.run();
+        return testInfo;
     }
 }

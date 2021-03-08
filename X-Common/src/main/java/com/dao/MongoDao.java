@@ -127,14 +127,28 @@ public class MongoDao {
      * query.limit(pageSize).skip((pageIndex - 1) * pageSize).with(Sort.by(Sort.Direction.DESC, "ctime"));
      * return mongoTemplate.find(query, ArticleDO.class);
      */
-    public List<TaskDO> findTasksByPageIndex(Integer pageIndex, Integer pageSize, String keyWord) {
+    public List<TaskDO> findTasksByPageIndex(Integer pageIndex, Integer pageSize, String keyWord, String parseType) {
         Query query = StringUtils.isEmpty(keyWord) ? new Query() : new Query(Criteria.where("name").regex(keyWord));
+        if (!StringUtils.isEmpty(parseType)) {
+            query.addCriteria(Criteria.where("parser_type").regex(parseType));
+        }
         query.limit(pageSize).skip((pageIndex - 1) * pageSize).with(Sort.by(Sort.Direction.DESC, "op_time"));
         return mongoTemplate.find(query, TaskDO.class);
     }
 
-    public long taskCount() {
+    public long taskCount(String name, String parseType) {
         Query query = new Query();
+        Criteria c = null;
+        if (!StringUtils.isEmpty(name)) {
+            c = Criteria.where("name").regex(name);
+        }
+        if (!StringUtils.isEmpty(parseType)) {
+            if (c != null) c.andOperator(Criteria.where("parser_type").regex(parseType));
+            else {
+                c = Criteria.where("parser_type").regex(parseType);
+            }
+        }
+        if (c != null) query.addCriteria(c);
         return mongoTemplate.count(query, TaskDO.class);
     }
 

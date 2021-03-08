@@ -5,21 +5,21 @@ import com.constant.ZKConstant;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
 import com.dao.ZkDao;
-import com.google.gson.GsonBuilder;
-import org.springframework.data.redis.RedisSystemException;
-import spider.downloader.ChromeDownloader;
 import com.entity.*;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.RedisSystemException;
+import org.springframework.stereotype.Component;
+import spider.downloader.HtmlUnitDownloader;
 import spider.parser.CustomParser;
 import spider.parser.EpaperParser;
 import spider.parser.IndexParser;
 import spider.parser.PageParser;
 import spider.pipeline.MongoPipeline;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import spider.pipeline.NewsHealthPipeLine;
 import us.codecraft.webmagic.Spider;
 import us.codecraft.webmagic.downloader.Downloader;
@@ -27,7 +27,10 @@ import us.codecraft.webmagic.downloader.HttpClientDownloader;
 import us.codecraft.webmagic.processor.PageProcessor;
 
 import javax.annotation.PostConstruct;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -76,8 +79,11 @@ public class CrawlReactor {
     Map<String, Spider> runningTaskMap = new ConcurrentHashMap<>();
 
 
+//    @Autowired
+//    ChromeDownloader chromeDownloader;
+
     @Autowired
-    ChromeDownloader chromeDownloader;
+    HtmlUnitDownloader htmlUnitDownloader;
 
     Downloader baseDownloader = new HttpClientDownloader();
 
@@ -174,6 +180,7 @@ public class CrawlReactor {
             }
 
             //优化点:若在redis发现访问过了,就直接跳过;
+            // TODO: 2021/3/8 要变成可配置化
             boolean flag = true;
             if (processor instanceof IndexParser) {
                 if (flag) {
@@ -198,7 +205,7 @@ public class CrawlReactor {
                 .addPipeline(newsHealthPipeLine)
                 .addPipeline(mongoPipeline)
                 .thread(10)
-                .setDownloader(task.isDynamic() ? chromeDownloader : baseDownloader);
+                .setDownloader(task.isDynamic() ? htmlUnitDownloader : baseDownloader);
 
         spider.setActionWhenStart(() -> {
             //管理信息加入任务
@@ -225,6 +232,11 @@ public class CrawlReactor {
 
         //上传耗费时间日志
         CrawlLogDO crawlLogDO = new CrawlLogDO(new Date(start), end - start, task.getId(), pageCount, NODE_PID);
+
+        if (spider.isForceStop()) {
+            crawlLogDO.setExtra("中途手动关闭");
+        }
+
         mongoDao.savaCrawlLog(crawlLogDO);
     }
 
@@ -263,6 +275,10 @@ public class CrawlReactor {
         if (spider != null) {
             log.info("找到对应的任务,正在关闭:{}", taskId);
             spider.stop();
+            //设置标志位,日志使用
+            if (spider instanceof CallbackSpider) {
+                ((CallbackSpider) spider).setForceStop(true);
+            }
         } else {
             log.warn("未找到对应的任务:{}", taskId);
         }

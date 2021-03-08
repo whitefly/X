@@ -1,6 +1,6 @@
 package center.web.controller;
 
-import center.utils.ChromeUtil;
+import center.utils.DynamicUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -44,7 +44,7 @@ public class CssHelperController {
             if (selenium) {
                 //动态加载
                 Request request = new Request(url);
-                Page download = ChromeUtil.chromeDownloader.download(request, null);
+                Page download = DynamicUtil.dynamicDownloader.download(request, null);
                 result = download.getRawText();
             } else {
                 //静态加载

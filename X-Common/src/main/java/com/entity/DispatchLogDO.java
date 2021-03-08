@@ -22,6 +22,8 @@ public class DispatchLogDO {
     @Field("ctime")
     Date ctime;
 
+    String extra;
+
 
     public DispatchLogDO(String taskName, String taskId, Date ctime) {
         this.taskName = taskName;

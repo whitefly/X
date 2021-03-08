@@ -32,6 +32,8 @@ public class CrawlLogDO {
     @Field("page_count")
     Long pageCount;
 
+    String extra;
+
 
     public CrawlLogDO(Date startTime, Long cost, String taskId, Long pageCount, String host) {
         this.startTime = startTime;
