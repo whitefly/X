@@ -8,11 +8,15 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
 public class ReUtil {
 
     static Cache<String, Pattern> cache = CacheBuilder.newBuilder().maximumSize(500).build();
 
-    public static String regex(String re, String content, boolean all) {
+    final static String IMG_LINK_REGEX = "(https?:[^:<>\"]*\\/)([^:<>\"]*)(\\.(?:png|jpe?g|webp|gif))";
+    final static String VIDEO_LINK_REGEX = "(https?:[^:<>\"]*\\/)([^:<>\"]*)(\\.m3u8)";
+
+    public static String regex(String re, String content, boolean all, boolean group1) {
         //判断是否有括号
         if (re == null || content == null) return null;
         int l = re.indexOf("(");
@@ -30,21 +34,28 @@ public class ReUtil {
         List<String> result = new ArrayList<>();
         if (all) {
             while (matcher.find()) {
-                String group = matcher.group(1);
+                String group = group1 ? matcher.group(1) : matcher.group();
                 result.add(group);
             }
         } else {
             if (matcher.find()) {
-                result.add(matcher.group(1));
+                result.add(group1 ? matcher.group(1) : matcher.group());
             }
         }
         return String.join(" \n ", result);
     }
 
     public static void main(String[] args) {
-        String urls = "http://www.xiuren.org/images/2017/05/527592213.jpg \\n http://www.xiuren.org/misc/okamoto/002/0001.jpg \\n http://www.xiuren.org/misc/okamoto/002/0002.jpg \\n http://www.xiuren.org/misc/okamoto/002/0003.jpg \\n http://www.xiuren.org/misc/okamoto/002/0004.jpg \\n http://www.xiuren.org/misc/okamoto/002/0005.jpg \\n http://www.xiuren.org/misc/okamoto/002/0006.jpg \\n http://www.xiuren.org/misc/okamoto/002/0007.jpg \\n http://www.xiuren.org/misc/okamoto/002/0008.jpg \\n http://www.xiuren.org/misc/okamoto/002/0010.jpg \\n http://www.xiuren.org/misc/okamoto/002/0011.jpg \\n http://www.xiuren.org/misc/okamoto/002/0012.jpg \\n http://www.xiuren.org/misc/okamoto/002/0013.jpg \\n http://www.xiuren.org/misc/okamoto/002/0014.jpg \\n http://www.xiuren.org/misc/okamoto/002/0015.jpg \\n http://www.xiuren.org/misc/okamoto/002/0016.jpg \\n http://www.xiuren.org/misc/okamoto/002/0020.jpg \\n http://www.xiuren.org/misc/okamoto/002/0021.jpg \\n http://www.xiuren.org/misc/okamoto/002/0022.jpg \\n http://www.xiuren.org/misc/okamoto/002/0023.jpg \\n http://www.xiuren.org/misc/okamoto/002/0024.jpg \\n http://www.xiuren.org/misc/okamoto/002/0025.jpg \\n http://www.xiuren.org/misc/okamoto/002/0026.jpg \\n http://www.xiuren.org/misc/okamoto/002/0027.jpg \\n http://www.xiuren.org/misc/okamoto/002/0028.jpg \\n http://www.xiuren.org/misc/okamoto/002/0029.jpg \\n http://www.xiuren.org/misc/okamoto/002/0030.jpg \\n http://www.xiuren.org/misc/okamoto/002/0031.jpg \\n http://www.xiuren.org/misc/okamoto/002/0032.jpg \\n http://www.xiuren.org/misc/okamoto/002/0033.jpg \\n http://www.xiuren.org/misc/okamoto/002/0034.jpg \\n http://www.xiuren.org/misc/okamoto/002/0035.jpg \\n http://www.xiuren.org/misc/okamoto/002/0039.jpg \\n http://www.xiuren.org/misc/okamoto/002/0040.jpg \\n http://www.xiuren.org/misc/okamoto/002/0041.jpg \\n http://www.xiuren.org/misc/okamoto/002/0042.jpg \\n http://www.xiuren.org/misc/okamoto/002/0043.jpg \\n http://www.xiuren.org/misc/okamoto/002/0044.jpg \\n http://www.xiuren.org/misc/okamoto/002/0045.jpg \\n http://www.xiuren.org/misc/okamoto/002/0046.jpg \\n http://www.xiuren.org/misc/okamoto/002/0047.jpg \\n http://www.xiuren.org/misc/okamoto/002/0048.jpg \\n http://www.xiuren.org/misc/okamoto/002/0049.jpg \\n http://www.xiuren.org/misc/okamoto/002/0050.jpg \\n http://www.xiuren.org/misc/okamoto/002/0051.jpg \\n http://www.xiuren.org/misc/okamoto/002/0052.jpg \\n http://www.xiuren.org/misc/okamoto/002/0053.jpg \\n http://www.xiuren.org/misc/okamoto/002/0054.jpg \\n http://www.xiuren.org/misc/okamoto/002/0055.jpg \\n http://www.xiuren.org/misc/okamoto/002/0056.jpg \\n http://www.xiuren.org/misc/okamoto/002/0057.jpg \\n http://www.xiuren.org/misc/okamoto/002/0058.jpg \\n http://www.xiuren.org/misc/okamoto/002/0059.jpg \\n http://www.xiuren.org/misc/okamoto/002/0060.jpg \\n http://www.xiuren.org/misc/okamoto/002/0061.jpg \\n http://www.xiuren.org/misc/okamoto/002/0062.jpg \\n http://www.xiuren.org/misc/okamoto/002/0063.jpg \\n http://www.xiuren.org/misc/okamoto/002/0064.jpg \\n http://www.xiuren.org/misc/okamoto/002/0065.jpg \\n http://www.xiuren.org/misc/okamoto/002/0066.jpg \\n http://www.xiuren.org/misc/okamoto/002/0067.jpg \\n http://www.xiuren.org/misc/okamoto/002/0068.jpg \\n http://www.xiuren.org/misc/okamoto/002/0069.jpg \\n http://www.xiuren.org/misc/okamoto/002/0070.jpg \\n http://www.xiuren.org/misc/okamoto/002/0071.jpg \\n http://www.xiuren.org/misc/okamoto/002/0072.jpg \\n http://www.xiuren.org/misc/okamoto/002/0073.jpg \\n http://www.xiuren.org/misc/okamoto/002/0074.jpg \\n http://www.xiuren.org/misc/okamoto/002/0075.jpg \\n http://www.xiuren.org/misc/okamoto/002/0076.jpg \\n http://www.xiuren.org/misc/okamoto/002/0077.jpg \\n http://www.xiuren.org/misc/okamoto/002/0078.jpg \\n http://www.xiuren.org/misc/okamoto/002/0079.jpg \\n http://www.xiuren.org/misc/okamoto/002/0080.jpg \\n http://www.xiuren.org/misc/okamoto/002/0081.jpg \\n http://www.xiuren.org/misc/okamoto/002/0082.jpg \\n http://www.xiuren.org/misc/okamoto/002/0083.jpg \\n http://www.xiuren.org/misc/okamoto/002/0084.jpg\"\n";
-        String s = urls.replaceAll("(http.+?\\.jpg)", "<img src='$1'>");
-        System.out.println(s);
+        String content = "</a></p><p><img src=\"https://zzzttt18.com/usr/uploads/2020/11/1077751958.jpg\" alt=\"QQ截图20201130220844.jpg\" title=\"QQ截图20201130220844.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/2288550212.jpg\" alt=\"QQ截图20201130220916.jpg\" title=\"QQ截图20201130220916.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/187071483.jpg\" alt=\"QQ截图20201130220925.jpg\" title=\"QQ截图20201130220925.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/2083541212.jpg\" alt=\"QQ截图20201130220934.jpg\" title=\"QQ截图20201130220934.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/1082276667.jpg\" alt=\"QQ截图20201130220943.jpg\" title=\"QQ截图20201130220943.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/2363766288.jpg\" alt=\"QQ截图20201130220952.jpg\" title=\"QQ截图20201130220952.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/3774558551.jpg\" alt=\"QQ截图20201130221004.jpg\" title=\"QQ截图20201130221004.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/1173557385.jpg\" alt=\"QQ截图20201130221013.jpg\" title=\"QQ截图20201130221013.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/1870924165.jpg\" alt=\"QQ截图20201130221022.jpg\" title=\"QQ截图20201130221022.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/979416138.jpg\" alt=\"QQ截图20201130221043.jpg\" title=\"QQ截图20201130221043.jpg\"><br><img src=\"https://zzzttt18.com/usr/uploads/2020/11/3268967722.jpg\" alt=\"QQ截图20201130221104.jpg\" title=\"QQ截图20201130221104.jpg\"></p><p><div class=\"dplayer\" data-config='{\"live\":false,\"autoplay\":false,\"theme\":\"#FADFA3\",\"loop\":false,\"screenshot\":false,\"hotkey\":true,\"preload\":\"none\",\"lang\":\"zh-cn\",\"logo\":null,\"volume\":0.7,\"mutex\":true,\"video\":{\"url\":\"https:\\/\\/v.muyuanwy.com\\/public\\/videos\\/5fc4fbe319a1697166f36399\\/index.m3u8\",\"pic\":\"\",\"type\":\"auto\",\"thumbnails\":null}}'></div></p><p><div class=\"dplayer\" data-config='{\"live\":false,\"autoplay\":false,\"theme\":\"#FADFA3\",\"loop\":false,\"screenshot\":false,\"hotkey\":true,\"preload\":\"none\",\"lang\":\"zh-cn\",\"logo\":null,\"volume\":0.7,\"mutex\":true,\"video\":{\"url\":\"https:\\/\\/rd.91cdn.xyz\\/hls\\/videos\\/30000\\/30390\\/30390.mp4\\/index.m3u8?sid=\",\"pic\":\"\",\"type\":\"auto\",\"thumbnails\":null}}'></div></p><p>高清完整版：<a href=\"https://zzzttt.life/xo\">https://zzzttt.life/xo</a></p><hr><p>更多福利APP：<a href=\"https://zzzttt.life/666\" target=\"_blank\" class=\"btn btn-primary\">点击进入</a></p> </div>\n" +
+                "<div class=\"tags\">\n" +
+                "<div itemprop=\"keywords\" class=\"keywords ainAbh\"></div>\n" +
+                "</div>\n" +
+                "<style type=\"text/css\">\n" +
+                "            .flash {\n" +
+                "                font-weight: bold;\n" +
+                "                font-size: calc(10px + 4vh);\n" +
+                "                line-height: calc(10px + 6.6vh);";
+
     }
 
 }

@@ -56,7 +56,7 @@ public class TimeUtil {
                 return matcher.group();
             }
         }
-        return "";
+        return null;
     }
 
     public static Date convert2Date(String dateStr) {

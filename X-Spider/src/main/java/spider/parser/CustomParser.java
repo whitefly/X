@@ -3,6 +3,8 @@ package spider.parser;
 import com.entity.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
+import spider.utils.NewsParserUtil;
+import spider.utils.RequestUtil;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Request;
 import us.codecraft.webmagic.Site;
@@ -14,7 +16,7 @@ import java.util.Map;
 @Slf4j
 public class CustomParser extends NewsParser {
     //初始url的别名就是叫 首页,需要和前端对齐
-    static final String firstAlias = "首页";
+    static final String FIRST_ALIAS = "首页";
 
     CustomParserDO customParser;
 
@@ -30,10 +32,10 @@ public class CustomParser extends NewsParser {
         page.setSkip(true);
         if (taskInfo.getStartUrl().equals(page.getUrl().toString())) {
             //设置一个标记即可,这里的代码只会执行一次
-            page.getRequest().putExtra("alias", firstAlias);
+            page.getRequest().putExtra(RequestUtil.ALIAS_KEY, FIRST_ALIAS);
         }
 
-        String alias = (String) IndexParser.getAlias(page.getRequest());
+        String alias = (String) RequestUtil.getAlias(page.getRequest());
         StepDO stepDO = customParser.getStepDOMap().get(alias);
         if (stepDO != null) {
             executeOneStep(page, stepDO);
@@ -42,7 +44,7 @@ public class CustomParser extends NewsParser {
 
     String executeOneStep(Page page, StepDO step) {
         if (step.isExtract()) {
-            ArticleDO articleDO = NewsParser.parseArticle(page, customParser);
+            ArticleDO articleDO = NewsParserUtil.parseArticle(page, customParser);
             page.putField("ArticleDO", articleDO);
             page.setSkip(false);
         }
@@ -52,7 +54,7 @@ public class CustomParser extends NewsParser {
         for (FieldDO f : links) {
             int count = 0;
             if (!StringUtils.isEmpty(f.getAlias())) {
-                List<Request> aliasLinks = IndexParser.getAliasLinksByField(page, f, f.getAlias());
+                List<Request> aliasLinks = RequestUtil.getAliasLinksByField(page, f, f.getAlias());
                 aliasLinks.forEach(page::addTargetRequest);
                 count += aliasLinks.size();
             }

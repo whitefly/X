@@ -4,6 +4,7 @@ import com.entity.ArticleDO;
 import com.entity.NewsParserDO;
 import com.entity.TaskDO;
 import lombok.Getter;
+import spider.utils.NewsParserUtil;
 import us.codecraft.webmagic.Page;
 
 import java.util.Map;
@@ -26,7 +27,7 @@ public class TestBodyParser extends NewsParser {
     public void process(Page page) {
         //此时传入的一定是正文页url
         //二级页面
-        ArticleDO articleDO = NewsParser.parseArticle(page, newsParserDO);
+        ArticleDO articleDO = NewsParserUtil.parseArticle(page, newsParserDO);
         item.put("title", articleDO.getTitle());
         item.put("content", articleDO.getContent());
         item.put("ptime", articleDO.getPtime());

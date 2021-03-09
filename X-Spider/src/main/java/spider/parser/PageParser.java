@@ -3,6 +3,8 @@ package spider.parser;
 import com.entity.ArticleDO;
 import com.entity.PageParserDO;
 import com.entity.TaskDO;
+import spider.utils.NewsParserUtil;
+import spider.utils.RequestUtil;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Request;
 
@@ -23,24 +25,24 @@ public class PageParser extends IndexParser {
         page.setSkip(true);
         if (taskInfo.getStartUrl().equals(page.getUrl().toString())) {
             //处理初始页面
-            List<Request> newUrls = getAliasLinksByField(page, indexParser.getIndexRule(), "newUrls");
-            List<Request> otherUrls = getAliasLinksByField(page, pageParserDO.getPageRule(), "otherUrls");
+            List<Request> newUrls = RequestUtil.getAliasLinksByField(page, indexParser.getIndexRule(), "newUrls");
+            List<Request> otherUrls = RequestUtil.getAliasLinksByField(page, pageParserDO.getPageRule(), "otherUrls");
 
             //通过redis忽略过去启动任务时的正文页;
             newUrls = filterNewsRequest(newUrls);
             //加入框架队列中
             newUrls.forEach(page::addTargetRequest);
             otherUrls.forEach(page::addTargetRequest);
-        } else if ("otherUrls".equals(getAlias(page.getRequest()))) {
-            List<Request> newUrls = getAliasLinksByField(page, indexParser.getIndexRule(), "newUrls");
-            List<Request> otherUrls = getAliasLinksByField(page, pageParserDO.getPageRule(), "otherUrls");
+        } else if ("otherUrls".equals(RequestUtil.getAlias(page.getRequest()))) {
+            List<Request> newUrls = RequestUtil.getAliasLinksByField(page, indexParser.getIndexRule(), "newUrls");
+            List<Request> otherUrls = RequestUtil.getAliasLinksByField(page, pageParserDO.getPageRule(), "otherUrls");
 
             newUrls = filterNewsRequest(newUrls);
             //加入框架队列中
             newUrls.forEach(page::addTargetRequest);
             otherUrls.forEach(page::addTargetRequest);
-        } else if ("newUrls".equals(getAlias(page.getRequest()))) {
-            ArticleDO articleDO = NewsParser.parseArticle(page, indexParser);
+        } else if ("newUrls".equals(RequestUtil.getAlias(page.getRequest()))) {
+            ArticleDO articleDO = NewsParserUtil.parseArticle(page, indexParser);
 
             //把整个对象放入map中的ArticleDO中,在pipeline去存出
             page.putField("ArticleDO", articleDO);

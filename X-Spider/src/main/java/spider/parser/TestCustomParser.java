@@ -4,10 +4,9 @@ import com.entity.CustomParserDO;
 import com.entity.CustomTestInfo;
 import com.entity.StepDO;
 import com.entity.TaskDO;
+import spider.utils.RequestUtil;
 import us.codecraft.webmagic.Page;
 
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestCustomParser extends CustomParser {
@@ -37,9 +36,9 @@ public class TestCustomParser extends CustomParser {
 
         page.setSkip(true);
         if (taskInfo.getStartUrl().equals(page.getUrl().toString())) {
-            page.getRequest().putExtra("alias", firstAlias);
+            page.getRequest().putExtra("alias", FIRST_ALIAS);
         }
-        String alias = (String) IndexParser.getAlias(page.getRequest());
+        String alias = (String) RequestUtil.getAlias(page.getRequest());
         StepDO stepDO = customParser.getStepDOMap().get(alias);
         if (stepDO != null) {
             String branch = executeOneStep(page, stepDO);

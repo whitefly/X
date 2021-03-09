@@ -4,6 +4,10 @@ import lombok.Data;
 
 import java.util.List;
 
+/**
+ * 用于前端的显示翻页功能
+ * @param <T>
+ */
 @Data
 public class PageVO<T> {
     long pageTotal; //单元数据总量

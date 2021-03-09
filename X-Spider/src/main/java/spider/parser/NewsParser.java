@@ -1,27 +1,14 @@
 package spider.parser;
 
 import com.entity.ArticleDO;
-import com.entity.FieldDO;
 import com.entity.NewsParserDO;
 import com.entity.TaskDO;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.jsoup.nodes.Document;
-import spider.utils.AutoExtractor;
-import spider.utils.ReUtil;
-import spider.utils.TimeUtil;
+import spider.utils.NewsParserUtil;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Site;
 import us.codecraft.webmagic.processor.PageProcessor;
-import us.codecraft.webmagic.selector.Html;
-
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static com.utils.FieldUtil.isFieldEmpty;
 
 /**
  * 最底层的正文处理器,其他处理器最终都会解析正文,所以都会继承它
@@ -49,102 +36,9 @@ public class NewsParser implements PageProcessor {
 
     @Override
     public void process(Page page) {
-        ArticleDO articleDO = NewsParser.parseArticle(page, newsParserDO);
+        ArticleDO articleDO = NewsParserUtil.parseArticle(page, newsParserDO);
         //把整个对象放入map中的ArticleDO中,在pipeline去存出
         page.putField("ArticleDO", articleDO);
-    }
-
-    public static ArticleDO parseArticle(Page page, NewsParserDO parserDetail) {
-        FieldDO titleRule = parserDetail.getTitleRule();
-        FieldDO contentRule = parserDetail.getContentRule();
-        FieldDO timeRule = parserDetail.getTimeRule();
-        ArticleDO articleDO = null;
-
-        if (isFieldEmpty(titleRule) || isFieldEmpty(contentRule) || isFieldEmpty(timeRule)) {
-            //若必要字段xpath缺失,则采用自动提取
-            articleDO = autoParse(page);
-        }
-
-        if (articleDO == null) {
-            articleDO = new ArticleDO();
-        }
-
-        //填充用户填写的字段
-        if (!isFieldEmpty(contentRule)) articleDO.setContent(getValue(page, contentRule));
-        if (!isFieldEmpty(titleRule)) articleDO.setTitle(getValue(page, titleRule));
-        if (!isFieldEmpty(timeRule)) {
-            String value = getValue(page, timeRule);
-            //从用户选择的内容中提取时间
-            String s = TimeUtil.extractTimeStr(value);
-            Date date = TimeUtil.convert2Date(s);
-            articleDO.setPtime(date);
-        }
-
-        //若时间为空,则用现在的时间替代
-        if (articleDO.getPtime() == null) {
-            articleDO.setPtime(new Date());
-        }
-
-        articleDO.setCtime(new Date());
-
-        //解析额外字段
-        articleDO.setExtra(parseExtra(page, parserDetail));
-        return articleDO;
-    }
-
-    public static ArticleDO autoParse(Page page) {
-        Document document = page.getHtml().getDocument();
-        ArticleDO result = new ArticleDO();
-        try {
-            AutoExtractor.News news = AutoExtractor.getNewsByDoc(document);
-            result.setTitle(news.getTitle());
-
-            String text = news.getContentElement().text();
-            if (text != null) {
-                text = new Html(news.getContentElement().text()).xpath("tidyText()").get();
-            }
-            result.setContent(text);
-            //转换字符串时间为date格式
-            Date date = TimeUtil.convert2Date(news.getTime());
-
-            //若无法解析,则从整个html中匹配时间
-            if (date == null) {
-                date = TimeUtil.convert2Date(TimeUtil.extractTimeStr(page.getRawText()));
-            }
-
-            result.setPtime(date);
-            return result;
-        } catch (Exception e) {
-            log.error("自动解析失败:" + page.getUrl());
-        }
-        return null;
-    }
-
-    public static String getValue(Page page, FieldDO f) {
-        String result = null;
-        if (!StringUtils.isEmpty(f.getCss())) {
-            List<String> all = page.getHtml().css(f.getCss()).xpath("allText()").all();
-            result = all != null ? String.join("\n", all) : null;
-        } else if (!StringUtils.isEmpty(f.getXpath())) {
-            List<String> all = page.getHtml().xpath(f.getXpath()).xpath("allText()").all();
-            result = all != null ? String.join("\n", all) : null;
-        } else if (!StringUtils.isEmpty(f.getRe())) {
-            String rawText = page.getRawText();
-            result = ReUtil.regex(f.getRe(), rawText, true);
-        } else if (f.getSpecial() != null) {
-            result = f.getSpecial();
-        }
-        if (result != null) return result.trim();
-        return null;
-    }
-
-    public static Map<String, Object> parseExtra(Page page, NewsParserDO parserDetail) {
-        Map<String, Object> item = new HashMap<>();
-        if (parserDetail.getExtra() == null) return item;
-        for (FieldDO f : parserDetail.getExtra()) {
-            item.put(f.getName(), getValue(page, f));
-        }
-        return item;
     }
 
 
