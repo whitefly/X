@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,9 +32,9 @@ public class AutoExtractor {
     public static class News {
         protected String url = null;
         protected String title = null;
-        protected String content = null;
         protected String time = null;
         protected Element contentElement = null;
+        protected Date date;
     }
 
     public static final Logger LOG = LoggerFactory.getLogger(AutoExtractor.class);

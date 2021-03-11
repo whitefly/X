@@ -357,7 +357,6 @@ public class TaskService {
     public TestInfo testEpaper(TaskDO task, EpaperParserDO parserDO) {
         checkParserInfo(parserDO, true);
 
-
         TestInfo testInfo = new TestInfo();
         TestEpaperParser spider = new TestEpaperParser(task, parserDO, testInfo);
         String startUrl = task.getStartUrl();
@@ -374,11 +373,20 @@ public class TaskService {
     public TestInfo testPage(TaskDO task, PageParserDO parserDO) {
         checkParserInfo(parserDO, true);
 
-
         TestInfo testInfo = new TestInfo();
         TestPageParser spider = new TestPageParser(task, parserDO, testInfo);
         Spider app = Spider.create(spider).addUrl(task.getStartUrl()).thread(1).addPipeline(new NothingPipeline());
 
+        return executeTest(task, testInfo, app);
+    }
+
+    //PageParser模板测试
+    public TestInfo testAjax(TaskDO task, AjaxParserDO parserDO) {
+        checkParserInfo(parserDO, true);
+
+        TestInfo testInfo = new TestInfo();
+        TestAjaxParser spider = new TestAjaxParser(task, parserDO, testInfo);
+        Spider app = Spider.create(spider).addUrl(task.getStartUrl()).thread(1).addPipeline(new NothingPipeline());
         return executeTest(task, testInfo, app);
     }
 

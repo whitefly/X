@@ -16,10 +16,7 @@ import org.springframework.data.redis.RedisSystemException;
 import org.springframework.stereotype.Component;
 import spider.downloader.HtmlUnitDownloader;
 import spider.exception.ProcessorUnserializeError;
-import spider.parser.CustomParser;
-import spider.parser.EpaperParser;
-import spider.parser.IndexParser;
-import spider.parser.PageParser;
+import spider.parser.*;
 import spider.pipeline.MongoPipeline;
 import spider.pipeline.NewsHealthPipeLine;
 import us.codecraft.webmagic.Spider;
@@ -110,6 +107,7 @@ public class CrawlReactor {
 
     private PageProcessor genPageProcessor(TaskDO task, NewsParserDO parser) throws ProcessorUnserializeError {
         //根据不同的类型,封装好不同的爬虫实例
+        // TODO: 2021/3/11 后期采用反射来重构
         PageProcessor processor = null;
         CrawlType parserType = task.getParserType();
         switch (parserType) {
@@ -125,14 +123,14 @@ public class CrawlReactor {
             case CustomParser:
                 processor = new CustomParser(task, (CustomParserDO) parser);
                 break;
+            case AjaxParser:
+                processor = new AjaxParser(task, (AjaxParserDO) parser);
+                break;
         }
 
         if (processor == null) {
             throw new ProcessorUnserializeError("无法匹配对应的parserType:" + parserType);
         }
-
-        //抓取优化流程(主要为了IndexParser)
-        optimizeForProcessor(processor);
 
         log.info("获取即将启动任务的解析器基本信息:{}", processor);
         return processor;
@@ -188,6 +186,8 @@ public class CrawlReactor {
             TaskDO task = taskEditVO.getTask();
             NewsParserDO parser = taskEditVO.getParser();
             PageProcessor processor = genPageProcessor(task, parser);
+            //抓取优化流程(主要为了IndexParser)
+            optimizeForProcessor(processor);
 
             executorService.submit(() -> runSpider(task, processor));
         } catch (RedisSystemException e) {

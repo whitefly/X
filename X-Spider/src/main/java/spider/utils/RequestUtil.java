@@ -32,6 +32,15 @@ public class RequestUtil {
         return indexUrls == null ? Collections.emptyList() : indexUrls;
     }
 
+    public static List<String> getLinksByAjax(Page page, FieldDO rule) {
+        //field为提取连接的xpath
+        List<String> indexUrls = null;
+        if (!StringUtils.isEmpty(rule.getXpath())) {
+            indexUrls = page.getJson().jsonPath(rule.getXpath()).all();
+        }
+        return indexUrls == null ? Collections.emptyList() : indexUrls;
+    }
+
     public static List<Request> extractAliasRequest(Page page, FieldDO rule, String alias) {
         List<String> linksByField = getLinksByField(page, rule);
         return convert2AliasRequest(linksByField, alias);

@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.Date;
+import java.util.Map;
 
 @Document("task")
 @Data
@@ -38,6 +39,13 @@ public class TaskDO {
 
     @Field("op_time")
     private Date opDate;  //上次操作时间
+
+//    @Field("sleep_time")
+//    private long sleepTime; //每次单页下载的等待时间
+//
+//    @Field("cookie")
+//    private Map<String, String> cookie;
+
 
     @Transient
     Date lastRun; //任务上次启动时间

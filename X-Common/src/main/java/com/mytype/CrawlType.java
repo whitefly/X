@@ -10,7 +10,8 @@ public enum CrawlType {
     IndexParser(IndexParserDO.class),
     电子报Parser(EpaperParserDO.class),
     PageParser(PageParserDO.class),
-    CustomParser(CustomParserDO.class);
+    CustomParser(CustomParserDO.class),
+    AjaxParser(AjaxParserDO.class);
 
     @Getter
     private final Class<? extends NewsParserDO> clazz;

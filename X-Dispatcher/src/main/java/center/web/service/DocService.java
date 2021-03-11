@@ -10,10 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -48,25 +45,37 @@ public class DocService {
 
         Pattern urlPat = Pattern.compile("(https?.+?\\.(jpg|png|jpeg|gif))");
         List<String> urls = new ArrayList<>();
-        List<String> collect = null;
         if (extra != null) {
             for (Map.Entry<String, Object> item : extra.entrySet()) {
                 Object value = item.getValue();
                 if (value instanceof String) {
-                    Matcher matcher = urlPat.matcher((String) value);
-                    while (matcher.find()) {
-                        urls.add(matcher.group());
+                    urls.addAll(getImgFromStr((String) value, urlPat));
+                } else if (value instanceof Collection)
+                    for (Object o : (Collection) value) {
+                        if (o instanceof String) {
+                            urls.addAll(getImgFromStr((String) o, urlPat));
+                        }
                     }
-                }
             }
-            //替换为img标签
-            collect = urls.stream().map(x -> {
-                Matcher matcher = urlPat.matcher(x);
-                return matcher.replaceAll("<img src='$1'>");
-            }).collect(Collectors.toList());
         }
+        //生成img标签
+        List<String> imgTagStr = urls.stream().map(x -> {
+            Matcher matcher = urlPat.matcher(x);
+            return matcher.replaceAll("<img src='$1'>");
+        }).collect(Collectors.toList());
 
-        return collect == null ? Collections.emptyList() : collect;
+        return imgTagStr;
+    }
+
+    private List<String> getImgFromStr(String str, Pattern urlPat) {
+        if (str == null) return Collections.emptyList();
+        ArrayList<String> result = new ArrayList<>();
+        Matcher matcher = urlPat.matcher(str);
+        while (matcher.find()) {
+            result.add(matcher.group());
+        }
+        return result;
+
     }
 
 

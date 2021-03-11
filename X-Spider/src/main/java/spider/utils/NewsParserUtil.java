@@ -8,6 +8,7 @@ import com.mytype.ExtraType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.checkerframework.checker.units.qual.A;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -30,8 +31,16 @@ public class NewsParserUtil {
         FieldDO timeRule = parserDetail.getTimeRule();
 
         //正文密度算法解析
-        ArticleDO articleDO = autoParse(page);
-
+        ArticleDO articleDO = new ArticleDO();
+        AutoExtractor.News news = autoParse(page);
+        Element autoScope = null;
+        if (news != null) {
+            autoScope = news.getContentElement();
+            articleDO.setTitle(news.getTitle());
+            articleDO.setContent(new Html(autoScope.text()).xpath("tidyText()").get());
+            articleDO.setPtime(news.getDate());
+            autoScope.setBaseUri(page.getRequest().getUrl());
+        }
 
         String v;
         //填充正文(用户定位不成功,就采用自动算法)
@@ -54,7 +63,6 @@ public class NewsParserUtil {
             Date date = TimeUtil.convert2Date(s);
             if (date != null) articleDO.setPtime(date);
         }
-
         //若时间为空,则用现在的时间替代
         if (articleDO.getPtime() == null) {
             articleDO.setPtime(new Date());
@@ -62,47 +70,38 @@ public class NewsParserUtil {
         articleDO.setCtime(new Date());
 
         //解析额外字段
-        Map<String, Object> extraRst = parseExtras(page, parserDetail);
+        Map<String, Object> extraRst = parseExtras(page, parserDetail, autoScope);
         articleDO.setExtra(extraRst);
         return articleDO;
     }
 
-    public static Map<String, Object> parseExtras(Page page, NewsParserDO parserDetail) {
+    public static Map<String, Object> parseExtras(Page page, NewsParserDO parserDetail, Element autoScope) {
         Map<String, Object> item = new HashMap<>();
         if (parserDetail.getExtra() == null) return item;
         for (ExtraField f : parserDetail.getExtra()) {
             if (!StringUtils.isEmpty(f.getName())) {
-                item.put(f.getName(), parseExtra(page, f));
+                item.put(f.getName(), parseExtra(page, f, autoScope));
             }
         }
         return item;
     }
 
-    public static ArticleDO autoParse(Page page) {
+    public static AutoExtractor.News autoParse(Page page) {
         Document document = page.getHtml().getDocument();
-        ArticleDO result = new ArticleDO();
+        AutoExtractor.News news = null;
         try {
-            AutoExtractor.News news = AutoExtractor.getNewsByDoc(document);
-            result.setTitle(news.getTitle());
-
-            String text = news.getContentElement().text();
-            if (text != null) {
-                text = new Html(news.getContentElement().text()).xpath("tidyText()").get();
-            }
-            result.setContent(text);
+            news = AutoExtractor.getNewsByDoc(document);
             //转换字符串时间为date格式
             Date date = TimeUtil.convert2Date(news.getTime());
-
             //若无法解析,则从整个html中匹配时间
             if (date == null) {
                 date = TimeUtil.convert2Date(TimeUtil.extractTimeStr(page.getRawText()));
             }
-
-            result.setPtime(date);
+            news.setDate(date);
         } catch (Exception e) {
             log.error("自动解析失败:" + page.getUrl());
         }
-        return result;
+        return news;
     }
 
     public static String getValue(Page page, FieldDO f) {
@@ -127,7 +126,7 @@ public class NewsParserUtil {
     }
 
 
-    public static List<String> parseExtra(Page page, ExtraField f) {
+    public static List<String> parseExtra(Page page, ExtraField f, Element autoScope) {
         //若用户填写了正则,则采取用户的正则提取
         if (!StringUtils.isEmpty(f.getRe())) {
             return ReUtil.regex(f.getRe(), page.getRawText(), true, true);
@@ -137,11 +136,11 @@ public class NewsParserUtil {
         if (targetForText) {
             return extractTextOrHtml(page, f, true);
         } else {
-            //用户是否想缩小范围来提取
+            //用户是否想缩小范围来提取(不缩小就采用自动算法获取的节点)
             boolean reduceScope = notEmpty(f.getCss()) || notEmpty(f.getXpath());
 
             //还是采用dom树来解析
-            Elements scope = reduceScope ? getScopeElements(page.getHtml().getDocument(), f) : new Elements(page.getHtml().getDocument());
+            Elements scope = reduceScope ? getScopeElements(page.getHtml().getDocument(), f) : new Elements(autoScope != null ? autoScope : page.getHtml().getDocument());
             return extractLink(f, scope);
         }
     }
