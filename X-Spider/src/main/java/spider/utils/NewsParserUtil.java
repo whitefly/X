@@ -1,9 +1,10 @@
 package spider.utils;
 
-import com.constant.ExtraType;
 import com.entity.ArticleDO;
+import com.entity.ExtraField;
 import com.entity.FieldDO;
 import com.entity.NewsParserDO;
+import com.mytype.ExtraType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -17,7 +18,7 @@ import us.codecraft.webmagic.selector.Selectable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.utils.FieldUtil.isFieldEmpty;
+import static com.utils.FieldUtil.hasNoLocator;
 
 @Slf4j
 public class NewsParserUtil {
@@ -34,20 +35,20 @@ public class NewsParserUtil {
 
         String v;
         //填充正文(用户定位不成功,就采用自动算法)
-        if (!isFieldEmpty(contentRule)) {
+        if (!hasNoLocator(contentRule)) {
             if ((v = getValue(page, contentRule)) != null) {
                 articleDO.setContent(v);
             }
         }
 
         //填充标题
-        if (!isFieldEmpty(titleRule)) {
+        if (!hasNoLocator(titleRule)) {
             if ((v = getValue(page, titleRule)) != null) {
                 articleDO.setTitle(v);
             }
         }
         //填充时间
-        if (!isFieldEmpty(timeRule)) {
+        if (!hasNoLocator(timeRule)) {
             String value = getValue(page, timeRule);
             String s = TimeUtil.extractTimeStr(value);
             Date date = TimeUtil.convert2Date(s);
@@ -69,7 +70,7 @@ public class NewsParserUtil {
     public static Map<String, Object> parseExtras(Page page, NewsParserDO parserDetail) {
         Map<String, Object> item = new HashMap<>();
         if (parserDetail.getExtra() == null) return item;
-        for (FieldDO f : parserDetail.getExtra()) {
+        for (ExtraField f : parserDetail.getExtra()) {
             if (!StringUtils.isEmpty(f.getName())) {
                 item.put(f.getName(), parseExtra(page, f));
             }
@@ -114,9 +115,8 @@ public class NewsParserUtil {
             result = all != null ? String.join("\n", all) : null;
         } else if (!StringUtils.isEmpty(f.getRe())) {
             String rawText = page.getRawText();
-            result = ReUtil.regex(f.getRe(), rawText, true, true);
-        } else if (f.getSpecial() != null) {
-            result = f.getSpecial();
+            List<String> list = ReUtil.regex(f.getRe(), rawText, true, true);
+            result = String.join(" ", list);
         }
         if (result != null) return result.trim();
         return null;
@@ -127,7 +127,7 @@ public class NewsParserUtil {
     }
 
 
-    public static String parseExtra(Page page, FieldDO f) {
+    public static List<String> parseExtra(Page page, ExtraField f) {
         //若用户填写了正则,则采取用户的正则提取
         if (!StringUtils.isEmpty(f.getRe())) {
             return ReUtil.regex(f.getRe(), page.getRawText(), true, true);
@@ -146,7 +146,7 @@ public class NewsParserUtil {
         }
     }
 
-    private static String extractLink(FieldDO f, Elements elements) {
+    private static List<String> extractLink(ExtraField f, Elements elements) {
         if (elements == null) return null;
         //开始提取链接
         switch (f.getExtraType()) {
@@ -163,12 +163,11 @@ public class NewsParserUtil {
         }
     }
 
-    private static String extractHtml(Elements elements) {
-        List<String> htmlContent = elements.stream().map(Element::html).collect(Collectors.toList());
-        return String.join(" \n ", htmlContent);
+    private static List<String> extractHtml(Elements elements) {
+        return elements.stream().map(Element::html).collect(Collectors.toList());
     }
 
-    private static String extractTextOrHtml(Page page, FieldDO f, boolean text) {
+    private static List<String> extractTextOrHtml(Page page, FieldDO f, boolean text) {
         List<String> all = null;
         //选中符合的元素
         if (notEmpty(f.getCss())) {
@@ -179,8 +178,7 @@ public class NewsParserUtil {
             all = text ? xpathRst.xpath("tidyText()").all() : xpathRst.xpath("outerHtml()").all();
         }
         //不同元素的内容合并,text采用\n作为分隔,html作为空格进行分隔
-        String delimiter = text ? "\n" : " ";
-        return all != null ? String.join(delimiter, all) : null;
+        return all;
     }
 
     private static Elements getScopeElements(Document doc, FieldDO f) {
@@ -194,28 +192,36 @@ public class NewsParserUtil {
         }
     }
 
-    private static String extractImgLink(Elements elements) {
+    private static List<String> extractImgLink(Elements elements) {
         List<Element> result = new ArrayList<>();
         for (Element element : elements) {
             //Elements的attr只是找第一个含有这个attr的,然后返回
             Elements img = element.getElementsByTag("img");
             result.addAll(img);
         }
-        List<String> imgLinks = result.stream().map(img -> img.attr("abs:src")).collect(Collectors.toList());
-        return CollectionUtils.isNotEmpty(imgLinks) ? String.join(" \n ", imgLinks) : null;
+        List<String> imgLinks = result.stream().map(img -> {
+            String imgUrl;
+            if (StringUtils.isNotEmpty(imgUrl = img.attr("data-original"))) {
+                //懒加载图片的地址
+                return imgUrl;
+            } else {
+                return img.attr("abs:src");
+            }
+        }).filter(StringUtils::isNotEmpty).collect(Collectors.toList());
+        return CollectionUtils.isNotEmpty(imgLinks) ? imgLinks : null;
     }
 
-    private static String extractVideoLink(Elements elements) {
+    private static List<String> extractVideoLink(Elements elements) {
         List<String> videoLinks = new ArrayList<>();
         for (Element element : elements) {
             String s = element.outerHtml();
-            String regex = ReUtil.regex(ReUtil.VIDEO_LINK_REGEX, s, true, false);
-            if (regex != null) videoLinks.add(regex.replace("\\/", "/"));
+            List<String> regex = ReUtil.regex(ReUtil.VIDEO_LINK_REGEX, s, true, false);
+            if (CollectionUtils.isNotEmpty(regex)) regex.forEach(x -> videoLinks.add(x.replace("\\/", "/")));
         }
-        return String.join(" \n ", videoLinks);
+        return videoLinks;
     }
 
-    private static String extractFileLink(Elements elements) {
+    private static List<String> extractFileLink(Elements elements) {
         List<String> fileSuffix = Arrays.asList(".docx", ".doc", ".pdf");
         List<Element> result = new ArrayList<>();
         for (Element element : elements) {
@@ -229,6 +235,6 @@ public class NewsParserUtil {
         }
         //转为绝对链接
         List<String> fileLinks = result.stream().map(fileLink -> fileLink.attr("abs:href")).collect(Collectors.toList());
-        return CollectionUtils.isNotEmpty(fileLinks) ? String.join(" \n ", fileLinks) : null;
+        return CollectionUtils.isNotEmpty(fileLinks) ? fileLinks : null;
     }
 }

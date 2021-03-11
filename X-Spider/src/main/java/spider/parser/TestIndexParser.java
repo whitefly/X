@@ -2,6 +2,7 @@ package spider.parser;
 
 import com.entity.IndexParserDO;
 import com.entity.TaskDO;
+import com.entity.TestInfo;
 import lombok.Getter;
 import us.codecraft.webmagic.Page;
 
@@ -14,17 +15,18 @@ public class TestIndexParser extends IndexParser {
 
 
     @Getter
-    List<String> indexUrls;
+    TestInfo testInfo;
 
 
-    public TestIndexParser(TaskDO taskInfo, IndexParserDO indexParser, List<String> indexUrls) {
+    public TestIndexParser(TaskDO taskInfo, IndexParserDO indexParser, TestInfo indexUrls) {
         super(taskInfo, indexParser);
-        this.indexUrls = indexUrls;
+        this.testInfo = indexUrls;
     }
 
     @Override
     public void process(Page page) {
         //一级页面的页面
-        indexUrls.addAll(parseIndexPage(page, indexParser));
+        List<String> newUrls = parseIndexPage(page, indexParser);
+        testInfo.getNewsUrls().addAll(newUrls);
     }
 }

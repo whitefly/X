@@ -3,6 +3,7 @@ package spider.utils;
 import com.entity.FieldDO;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.util.CollectionUtils;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Request;
 
@@ -31,9 +32,15 @@ public class RequestUtil {
         return indexUrls == null ? Collections.emptyList() : indexUrls;
     }
 
-    public static List<Request> getAliasLinksByField(Page page, FieldDO rule, String alias) {
+    public static List<Request> extractAliasRequest(Page page, FieldDO rule, String alias) {
         List<String> linksByField = getLinksByField(page, rule);
         return convert2AliasRequest(linksByField, alias);
+    }
+
+    public static void addToQueue(Page page, List<Request> requests) {
+        if (!CollectionUtils.isEmpty(requests)) {
+            requests.forEach(page::addTargetRequest);
+        }
     }
 
     /**

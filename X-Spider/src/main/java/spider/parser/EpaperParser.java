@@ -4,6 +4,7 @@ import com.entity.ArticleDO;
 import com.entity.EpaperParserDO;
 import com.entity.TaskDO;
 import lombok.Getter;
+import lombok.Setter;
 import spider.utils.NewsParserUtil;
 import spider.utils.RequestUtil;
 import us.codecraft.webmagic.Page;
@@ -19,6 +20,11 @@ public class EpaperParser extends IndexParser {
     @Getter
     EpaperParserDO epaperParser;
 
+
+    @Getter
+    @Setter
+    String firstUrl; //taskInfo的地址是个模板地址,无法判断
+
     public EpaperParser(TaskDO taskInfo, EpaperParserDO epaperParser) {
         super(taskInfo, epaperParser);
         this.epaperParser = epaperParser;
@@ -26,25 +32,20 @@ public class EpaperParser extends IndexParser {
 
     @Override
     public void process(Page page) {
-        //多加一个layout流程,形成三级页面,非常蛋疼的去模仿回调函数
-        if (taskInfo.getStartUrl().equals(page.getUrl().toString())) {
-            //layout页面,设置下一级为二级页面
-            List<String> urls = parserLayout(page, epaperParser);
-            List<Request> requests = RequestUtil.convert2AliasRequest(urls, "2级页面");
-            requests.forEach(page::addTargetRequest);
-            page.setSkip(true);
-        } else if ("2级页面".equals(RequestUtil.getAlias(page.getRequest()))) {
-            List<String> urls = parseIndexPage(page, epaperParser);
-            List<Request> requests = RequestUtil.convert2AliasRequest(urls, "3级页面");
-            requests.forEach(page::addTargetRequest);
-            page.setSkip(true);
-        } else if ("3级页面".equals(RequestUtil.getAlias(page.getRequest()))) {
-            //三级级页面
-            ArticleDO articleDO = NewsParserUtil.parseArticle(page, epaperParser);
-            //把整个对象放入map中的ArticleDO中,在pipeline去存出
-            page.putField("ArticleDO", articleDO);
+        page.setSkip(true);
+        if (page.getUrl().toString().equals(firstUrl)) {
+            //layout页面,本身也为目录页面
+            List<Request> otherUrls = RequestUtil.extractAliasRequest(page, epaperParser.getLayoutRule(), INDEX_URL_ALIAS);
+            List<Request> newsUrls = RequestUtil.extractAliasRequest(page, indexParser.getIndexRule(), NEWS_URL_ALIAS);
+
+            //通过redis忽略过去启动任务时的正文页;
+            newsUrls = filterNewsRequest(newsUrls);
+
+            //加入到队列
+            RequestUtil.addToQueue(page, newsUrls);
+            RequestUtil.addToQueue(page, otherUrls);
         } else {
-            page.setSkip(true);
+            super.process(page);
         }
     }
 
@@ -55,6 +56,16 @@ public class EpaperParser extends IndexParser {
 
     public List<String> parserLayout(Page page, EpaperParserDO epaperParser) {
         return RequestUtil.getLinksByField(page, epaperParser.getLayoutRule());
+    }
+
+    @Override
+    public String toString() {
+        return "EpaperParser{" +
+                "epaperParser=" + epaperParser +
+                ", indexParser=" + indexParser +
+                ", taskInfo=" + taskInfo +
+                ", newsParserDO=" + newsParserDO +
+                '}';
     }
 }
 

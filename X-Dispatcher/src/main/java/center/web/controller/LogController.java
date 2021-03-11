@@ -6,6 +6,7 @@ import center.web.service.TaskService;
 import com.entity.*;
 import com.google.gson.Gson;
 import center.web.service.LogService;
+import com.utils.GsonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -32,11 +33,9 @@ public class LogController {
     NodeManager manager;
 
 
-    Gson gson = new Gson();
-
     @PostMapping(path = "/crawlLog")
     public ResponseVO crawlLogList(@RequestBody String params) {
-        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
         String taskId = (String) hashMap.get("taskId");
 
         List<CrawlLogDO> crawlLogDO = crawlService.getCrawlLogDO(taskId);
@@ -45,7 +44,7 @@ public class LogController {
 
     @PostMapping(path = "/dispatchLog")
     public ResponseVO dispatchLogList(@RequestBody String params) {
-        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
         String taskId = (String) hashMap.get("taskId");
 
         List<DispatchLogDO> dispatchLog = crawlService.getDispatchLog(taskId);

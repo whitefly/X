@@ -14,5 +14,5 @@ public class StepDO {
 
     boolean extract; //提取自身
 
-    List<FieldDO> links; //转换为其他链接
+    List<AliasField> links; //转换为其他链接
 }

@@ -13,12 +13,13 @@ import java.util.List;
  */
 
 @Data
-public class CustomTestInfo {
+public class TestInfo {
     List<String> branches;
     List<String> newsUrls;
 
-    public CustomTestInfo(List<String> branches, List<String> newsUrls) {
-        this.branches = branches;
-        this.newsUrls = newsUrls;
+
+    public TestInfo() {
+        branches = new ArrayList<>();
+        newsUrls = new ArrayList<>();
     }
 }

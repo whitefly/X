@@ -35,11 +35,14 @@ public class CrawlLogDO {
     String extra;
 
 
-    public CrawlLogDO(Date startTime, Long cost, String taskId, Long pageCount, String host) {
+    public CrawlLogDO(Date startTime, Long cost, String taskId, Long pageCount, String host, String extra) {
         this.startTime = startTime;
         this.cost = cost;
         this.taskId = taskId;
         this.pageCount = pageCount;
         this.host = host;
+        this.extra = extra;
     }
+
+
 }

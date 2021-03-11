@@ -16,7 +16,7 @@ public class ReUtil {
     final static String IMG_LINK_REGEX = "(https?:[^:<>\"]*\\/)([^:<>\"]*)(\\.(?:png|jpe?g|webp|gif))";
     final static String VIDEO_LINK_REGEX = "(https?:[^:<>\"]*\\/)([^:<>\"]*)(\\.m3u8)";
 
-    public static String regex(String re, String content, boolean all, boolean group1) {
+    public static List<String> regex(String re, String content, boolean all, boolean group1) {
         //判断是否有括号
         if (re == null || content == null) return null;
         int l = re.indexOf("(");
@@ -42,7 +42,7 @@ public class ReUtil {
                 result.add(group1 ? matcher.group(1) : matcher.group());
             }
         }
-        return String.join(" \n ", result);
+        return result;
     }
 
     public static void main(String[] args) {

@@ -5,7 +5,7 @@ import lombok.Setter;
 import us.codecraft.webmagic.Spider;
 import us.codecraft.webmagic.processor.PageProcessor;
 
-public class CallbackSpider extends Spider {
+public class HookSpider extends Spider {
     /**
      * create a spider with pageProcessor.
      *
@@ -19,20 +19,19 @@ public class CallbackSpider extends Spider {
     @Getter
     public boolean forceStop = false;
 
-    public static CallbackSpider create(PageProcessor pageProcessor) {
-        return new CallbackSpider(pageProcessor);
+    public static HookSpider create(PageProcessor pageProcessor) {
+        return new HookSpider(pageProcessor);
     }
 
 
-    public CallbackSpider(PageProcessor pageProcessor) {
+    public HookSpider(PageProcessor pageProcessor) {
         super(pageProcessor);
     }
 
 
-    public Spider setActionWhenStop(Runnable func) {
+    public void setActionWhenStop(Runnable func) {
         checkIfRunning();
         actionAfterStop = func;
-        return this;
     }
 
     public void setActionWhenStart(Runnable func) {

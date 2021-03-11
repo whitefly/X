@@ -6,6 +6,7 @@ import com.entity.ResponseVO;
 import center.exception.WebException;
 import com.google.gson.Gson;
 import center.web.service.DocService;
+import com.utils.GsonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
@@ -23,14 +24,13 @@ import static center.utils.DocUtil.convertToExcel;
 @RestController
 @RequestMapping("/api/doc")
 public class DocController {
-    Gson gson = new Gson();
 
     @Autowired
     DocService docService;
 
     @PostMapping(path = "/list")
     public ResponseVO docList(@RequestBody String params) {
-        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
         int pageIndex = ((Double) hashMap.get("pageIndex")).intValue();
         String taskId = (String) hashMap.get("taskId");
         String keyword = (String) hashMap.get("keyword");
@@ -49,7 +49,7 @@ public class DocController {
     @PostMapping(path = "/clear")
     public ResponseVO clearArticle(@RequestBody String params) {
         //清理每个任务的全部爬取结果
-        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
         String taskId = (String) hashMap.get("taskId");
         docService.clearDoc(taskId);
         return new ResponseVO();

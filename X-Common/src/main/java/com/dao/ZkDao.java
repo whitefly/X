@@ -17,23 +17,7 @@ public class ZkDao {
     private CuratorFramework zkClient;
 
 
-    public boolean registerNode(String info) {
-        //注册临时节点
-        String path = ZKConstant.ZK_SPIDER_ROOT + "/node-";
-        try {
-            if (info == null) {
-                zkClient.create().withMode(CreateMode.EPHEMERAL_SEQUENTIAL).forPath(path);
-            } else {
-                zkClient.create().withMode(CreateMode.EPHEMERAL_SEQUENTIAL).forPath(path, info.getBytes());
-            }
-            return true;
-        } catch (Exception e) {
-            log.error("注册抓取节点失败", e);
-            return false;
-        }
-    }
-
-    public String registerNode2(String clusterRoot, String info) {
+    public String registerNode(String clusterRoot, String info) {
         String path = clusterRoot + "/node-";
         String newNodePath;
         try {

@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @ControllerAdvice
 public class MyExceptionHandler {
 
-    static Gson gson = new Gson();
 
     /**
      * 这里统一处理返回给前端的异常

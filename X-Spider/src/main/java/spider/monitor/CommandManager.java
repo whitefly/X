@@ -4,16 +4,15 @@ import com.constant.ZKConstant;
 import com.dao.RedisDao;
 import com.entity.CrawlNodeInfo;
 import com.google.gson.Gson;
+import com.utils.GsonUtil;
 import org.springframework.stereotype.Component;
-import spider.monitor.SysMonitor;
-import com.constant.CmdType;
+import com.mytype.CmdType;
 import com.constant.RedisConstant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import spider.reactor.CrawlReactor;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static com.utils.SystemInfoUtil.NODE_PID;
@@ -31,7 +30,6 @@ public class CommandManager {
     @Autowired
     private RedisDao redisDao;
 
-    Gson gson = new Gson();
 
 
     @Scheduled(cron = "*/3 * * * * ?")
@@ -54,7 +52,7 @@ public class CommandManager {
     private void uploadState() {
         String stateKey = RedisConstant.getStateKey(NODE_PID);
         CrawlNodeInfo info = genCrawlNodeState();
-        redisDao.setValueOnExpire(stateKey, gson.toJson(info), 30, TimeUnit.SECONDS);
+        redisDao.setValueOnExpire(stateKey, GsonUtil.toJson(info), 30, TimeUnit.SECONDS);
     }
 
     private String fetchCmd() {

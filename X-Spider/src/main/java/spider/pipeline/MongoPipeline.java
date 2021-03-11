@@ -1,14 +1,11 @@
 package spider.pipeline;
 
+import com.constant.RedisConstant;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
 import com.entity.ArticleDO;
 import com.entity.TaskDO;
-import spider.parser.IndexParser;
-import com.utils.FingerprintUtil;
-import com.constant.RedisConstant;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import spider.parser.NewsParser;
 import us.codecraft.webmagic.ResultItems;
@@ -19,22 +16,27 @@ import us.codecraft.webmagic.processor.PageProcessor;
 
 import java.lang.reflect.Field;
 
+import spider.parser.NewsParser;
+
 @Slf4j
 @Component
 public class MongoPipeline implements Pipeline {
 
-    @Autowired
-    private MongoDao mongoDao;
+    private final MongoDao mongoDao;
 
-    @Autowired
-    private RedisDao redisDao;
+    private final RedisDao redisDao;
+
+    public MongoPipeline(MongoDao mongoDao, RedisDao redisDao) {
+        this.mongoDao = mongoDao;
+        this.redisDao = redisDao;
+    }
 
     @Override
     public void process(ResultItems resultItems, Task task) {
         //为了获取TaskInfo,用了反射o(╥﹏╥)o
         TaskDO taskDO = getTaskInfo(task);
         if (taskDO == null) return;
-        ArticleDO article = resultItems.get("ArticleDO");
+        ArticleDO article = resultItems.get(NewsParser.ARTICLE_DO_KEY);
         if (article == null) return;
 
         String url = resultItems.getRequest().getUrl();

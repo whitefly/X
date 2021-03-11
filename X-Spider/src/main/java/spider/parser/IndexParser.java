@@ -2,25 +2,24 @@ package spider.parser;
 
 import com.constant.RedisConstant;
 import com.dao.RedisDao;
-import com.entity.FieldDO;
 import com.entity.IndexParserDO;
 import com.entity.TaskDO;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import spider.utils.RequestUtil;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Request;
 import us.codecraft.webmagic.Site;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class IndexParser extends NewsParser {
+
+    static final String INDEX_URL_ALIAS = "目录页";
 
 
     @Getter
@@ -45,13 +44,13 @@ public class IndexParser extends NewsParser {
 
     @Override
     public void process(Page page) {
-        if (taskInfo.getStartUrl().equals(page.getUrl().toString())) {
-            //一级页面
-            List<String> urls = parseIndexPage(page, indexParser);
-            urls = filterNewsUrl(urls);
-            if (!CollectionUtils.isEmpty(urls)) page.addTargetRequests(urls);
-            page.setSkip(true);
-        } else {
+        page.setSkip(true);
+        boolean isIndexPage = taskInfo.getStartUrl().equals(page.getUrl().toString()) || INDEX_URL_ALIAS.equals(RequestUtil.getAlias(page.getRequest()));
+        if (isIndexPage) {
+            List<Request> requests = RequestUtil.extractAliasRequest(page, indexParser.getIndexRule(), NEWS_URL_ALIAS);
+            requests = filterNewsRequest(requests);
+            RequestUtil.addToQueue(page, requests);
+        } else if (NEWS_URL_ALIAS.equals(RequestUtil.getAlias(page.getRequest()))) {
             //正文页面,交给正文处理器搞定
             super.process(page);
         }
@@ -67,17 +66,6 @@ public class IndexParser extends NewsParser {
     }
 
 
-    public List<String> filterNewsUrl(List<String> newsUrl) {
-        if (redisDao == null || CollectionUtils.isEmpty(newsUrl)) return newsUrl;
-
-        //若这个url被当做正文页解析过,则忽略它
-        String key = RedisConstant.getExtractedKey(taskInfo.getId());
-        List<String> collect = newsUrl.stream().filter(url -> !redisDao.existInSet(key, url)).collect(Collectors.toList());
-        int ignoreCount = newsUrl.size() - collect.size();
-        log.info("{}:待访问url集合中发现过去已被提取正文的正文URL {} 个...跳过", taskInfo.getName(), ignoreCount);
-        return collect;
-    }
-
     public List<Request> filterNewsRequest(List<Request> newsRequest) {
         if (redisDao == null || CollectionUtils.isEmpty(newsRequest)) return newsRequest;
         //若这个url被当做正文页解析过,则忽略它
@@ -86,5 +74,14 @@ public class IndexParser extends NewsParser {
         int ignoreCount = newsRequest.size() - collect.size();
         log.info("{}:待访问url集合中发现过去已被提取正文的正文URL {} 个...跳过", taskInfo.getName(), ignoreCount);
         return collect;
+    }
+
+    @Override
+    public String toString() {
+        return "IndexParser{" +
+                "indexParser=" + indexParser +
+                ", taskInfo=" + taskInfo +
+                ", newsParserDO=" + newsParserDO +
+                '}';
     }
 }

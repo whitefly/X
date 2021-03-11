@@ -1,4 +1,4 @@
-package com.constant;
+package com.mytype;
 
 
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
@@ -7,7 +7,7 @@ import java.util.Arrays;
 
 public enum CmdType {
 
-    //用于将爬虫节点发送命令
+    //用于向爬虫节点发送命令
     Node_Work_Start,
     Node_Work_Stop,
 

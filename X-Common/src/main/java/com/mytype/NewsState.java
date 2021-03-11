@@ -1,4 +1,4 @@
-package com.constant;
+package com.mytype;
 
 import lombok.Getter;
 
@@ -13,7 +13,7 @@ public enum NewsState {
     ILLEGAL_WORD_EXIST("含有敏感词");
 
     @Getter
-    private String describe;
+    private final String describe;
 
     NewsState(String describe) {
         this.describe = describe;

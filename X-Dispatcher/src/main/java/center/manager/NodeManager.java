@@ -1,11 +1,11 @@
 package center.manager;
 
-import com.constant.CmdType;
+import com.mytype.CmdType;
 import com.constant.RedisConstant;
 import com.dao.RedisDao;
 import com.entity.CrawlNode;
 import com.entity.CrawlNodeInfo;
-import com.google.gson.Gson;
+import com.utils.GsonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -27,7 +27,6 @@ public class NodeManager implements NodeManagerInterFace {
     @Autowired
     RedisDao redisDao;
 
-    private static final Gson gson = new Gson();
 
     @Override
     public void sendCmdNodeStop(String nodeId) {
@@ -86,14 +85,14 @@ public class NodeManager implements NodeManagerInterFace {
 
     private CrawlNode parseInfo(byte[] info) {
         String s = new String(info);
-        return gson.fromJson(s, CrawlNode.class);
+        return GsonUtil.fromJson(s, CrawlNode.class);
     }
 
 
     public Map<CrawlNode, CrawlNodeInfo> fetchBatchCrawlInfos(List<CrawlNode> nodes) {
         List<String> stateKeys = nodes.stream().map(x -> RedisConstant.getStateKey(x.getId())).collect(Collectors.toList());
         List<String> states = redisDao.getValueBatch(stateKeys);
-        List<CrawlNodeInfo> infos = states.stream().map(stateStr -> gson.fromJson(stateStr, CrawlNodeInfo.class)).collect(Collectors.toList());
+        List<CrawlNodeInfo> infos = states.stream().map(stateStr -> GsonUtil.fromJson(stateStr, CrawlNodeInfo.class)).collect(Collectors.toList());
 
         Map<CrawlNode, CrawlNodeInfo> result = new HashMap<>();
         int size = stateKeys.size();

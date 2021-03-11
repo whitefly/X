@@ -1,4 +1,4 @@
-package com.constant;
+package com.mytype;
 
 /**
  * 自定义字段可以自动提取的类型

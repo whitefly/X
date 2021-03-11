@@ -23,7 +23,7 @@ public class NewsParserDO {
     FieldDO timeRule;  //新闻时间
 
     @Field("extra")
-    List<FieldDO> extra; //其他额外的抓取属性
+    List<ExtraField> extra; //其他额外的抓取属性
 
     String type;//用来反序列化是使用,平时用不到
 

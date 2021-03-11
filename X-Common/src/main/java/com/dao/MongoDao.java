@@ -179,6 +179,10 @@ public class MongoDao {
         return mongoTemplate.findById(id, NewsParserDO.class);
     }
 
+    public List<NewsParserDO> findNewsParserList() {
+        return mongoTemplate.find(new Query(), NewsParserDO.class);
+    }
+
     public void updateNewsParser(NewsParserDO indexParser) {
         mongoTemplate.save(indexParser);
     }

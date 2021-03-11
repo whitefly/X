@@ -4,6 +4,7 @@ import com.entity.ArticleDO;
 import com.entity.NewsParserDO;
 import com.entity.TaskDO;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import spider.utils.NewsParserUtil;
 import us.codecraft.webmagic.Page;
@@ -16,6 +17,8 @@ import us.codecraft.webmagic.processor.PageProcessor;
 @Slf4j
 public class NewsParser implements PageProcessor {
 
+    public static final String ARTICLE_DO_KEY = "ArticleDO";
+    static final String NEWS_URL_ALIAS = "正文页";
     Site site = Site
             .me()
             .setSleepTime(0)
@@ -29,6 +32,7 @@ public class NewsParser implements PageProcessor {
     @Getter
     NewsParserDO newsParserDO;
 
+
     public NewsParser(TaskDO taskDO, NewsParserDO newsParserDO) {
         this.taskInfo = taskDO;
         this.newsParserDO = newsParserDO;
@@ -36,9 +40,11 @@ public class NewsParser implements PageProcessor {
 
     @Override
     public void process(Page page) {
+
         ArticleDO articleDO = NewsParserUtil.parseArticle(page, newsParserDO);
         //把整个对象放入map中的ArticleDO中,在pipeline去存出
-        page.putField("ArticleDO", articleDO);
+        page.putField(ARTICLE_DO_KEY, articleDO);
+        page.setSkip(false);
     }
 
 

@@ -2,10 +2,9 @@ package spider.pipeline;
 
 import com.checker.IllegalWordsSearch;
 import com.checker.IllegalWordsSearchResult;
-import com.constant.NewsState;
+import com.mytype.NewsState;
 import com.entity.ArticleDO;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import us.codecraft.webmagic.ResultItems;
@@ -18,8 +17,11 @@ import java.util.Map;
 @Slf4j
 public class NewsHealthPipeLine implements Pipeline {
 
-    @Autowired
-    IllegalWordsSearch illegalWordsSearch;
+    final IllegalWordsSearch illegalWordsSearch;
+
+    public NewsHealthPipeLine(IllegalWordsSearch illegalWordsSearch) {
+        this.illegalWordsSearch = illegalWordsSearch;
+    }
 
 
     @Override

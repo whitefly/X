@@ -1,5 +1,6 @@
 package com.entity;
 
+import com.mytype.CrawlType;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
@@ -21,7 +22,7 @@ public class TaskDO {
     private String startUrl;
 
     @Field("parser_type")
-    private String parserType;
+    private CrawlType parserType;
 
     @Field("parser_id")
     String parserId;

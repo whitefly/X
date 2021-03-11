@@ -10,6 +10,9 @@ import us.codecraft.webmagic.Request;
 
 import java.util.List;
 
+/**
+ * 翻页抓取流程
+ */
 public class PageParser extends IndexParser {
 
     PageParserDO pageParserDO;
@@ -25,31 +28,25 @@ public class PageParser extends IndexParser {
         page.setSkip(true);
         if (taskInfo.getStartUrl().equals(page.getUrl().toString())) {
             //处理初始页面
-            List<Request> newUrls = RequestUtil.getAliasLinksByField(page, indexParser.getIndexRule(), "newUrls");
-            List<Request> otherUrls = RequestUtil.getAliasLinksByField(page, pageParserDO.getPageRule(), "otherUrls");
-
+            List<Request> newsUrls = RequestUtil.extractAliasRequest(page, indexParser.getIndexRule(), NEWS_URL_ALIAS);
+            List<Request> otherUrls = RequestUtil.extractAliasRequest(page, pageParserDO.getPageRule(), INDEX_URL_ALIAS);
             //通过redis忽略过去启动任务时的正文页;
-            newUrls = filterNewsRequest(newUrls);
+            newsUrls = filterNewsRequest(newsUrls);
             //加入框架队列中
-            newUrls.forEach(page::addTargetRequest);
-            otherUrls.forEach(page::addTargetRequest);
-        } else if ("otherUrls".equals(RequestUtil.getAlias(page.getRequest()))) {
-            List<Request> newUrls = RequestUtil.getAliasLinksByField(page, indexParser.getIndexRule(), "newUrls");
-            List<Request> otherUrls = RequestUtil.getAliasLinksByField(page, pageParserDO.getPageRule(), "otherUrls");
-
-            newUrls = filterNewsRequest(newUrls);
-            //加入框架队列中
-            newUrls.forEach(page::addTargetRequest);
-            otherUrls.forEach(page::addTargetRequest);
-        } else if ("newUrls".equals(RequestUtil.getAlias(page.getRequest()))) {
-            ArticleDO articleDO = NewsParserUtil.parseArticle(page, indexParser);
-
-            //把整个对象放入map中的ArticleDO中,在pipeline去存出
-            page.putField("ArticleDO", articleDO);
-            //开启管道后序流程
-            page.setSkip(false);
-
-
+            RequestUtil.addToQueue(page, newsUrls);
+            RequestUtil.addToQueue(page, otherUrls);
+        } else {
+            super.process(page);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "PageParser{" +
+                "pageParserDO=" + pageParserDO +
+                ", indexParser=" + indexParser +
+                ", taskInfo=" + taskInfo +
+                ", newsParserDO=" + newsParserDO +
+                '}';
     }
 }

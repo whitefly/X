@@ -8,13 +8,10 @@ public class RedisConstant {
     public static final String REDIS_STATE_KEY_PREFIX = "state_";
 
     //任务在redis中的新闻hash后集合 set
-    public static final String HASH_KEY_PREFIX = "task_article_hash_";
+    public static final String ARTICLE_HASH_KEY_PREFIX = "task_article_hash_";
 
     //task解析过正文的URL合集,用来减少http访问 set
     public static final String TASK_EXTRACTED_URL_KEY_PREFIX = "task_extracted_urls_";
-
-    //
-    public static final String TASK_ON_NODE_KEY_PREFIX = "task_on_host_";
 
 
     //任务分发器的任务队列(短任务队列) list
@@ -24,7 +21,7 @@ public class RedisConstant {
     public static final String DISPATCHER_LONG_TASK_QUEUE_KEY = "dispatcher_long_task";
 
     public static String getHashKey(String taskId) {
-        return HASH_KEY_PREFIX + taskId;
+        return ARTICLE_HASH_KEY_PREFIX + taskId;
     }
 
     public static String getExtractedKey(String taskId) {

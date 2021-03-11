@@ -1,24 +1,27 @@
 package com.utils;
 
+import com.mytype.CrawlType;
 import com.entity.*;
+import com.mytype.LocatorType;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ParserUtil {
-    // 前端的parser类型名和具体DO的映射关系
-    public static Map<String, Class<? extends NewsParserDO>> parserMapping = new ConcurrentHashMap<>();
-    //用于ParserDO器的反序列化
-    public static RuntimeTypeAdapterFactory<NewsParserDO> typeAdapter;
+    // ParserDO的反序列化适配器
+    public static RuntimeTypeAdapterFactory<NewsParserDO> typeAdapter = RuntimeTypeAdapterFactory.of(NewsParserDO.class, "type");
+
+    //FieldDO的反序列化适配器
+    public static RuntimeTypeAdapterFactory<FieldDO> fieldTypeAdapter = RuntimeTypeAdapterFactory.of(FieldDO.class, "type");
 
     static {
-        parserMapping.put("IndexParser", IndexParserDO.class);
-        parserMapping.put("电子报Parser", EpaperParserDO.class);
-        parserMapping.put("PageParser", PageParserDO.class);
-        parserMapping.put("CustomParser", CustomParserDO.class);
+        // TODO: 2021/3/11 尝试用循环来批量导入
+        for (CrawlType crawlType : CrawlType.values()) {
+            typeAdapter.registerSubtype(crawlType.getClazz(), crawlType.name());
+        }
 
-        //填充对应的type关系,用于编码编辑的json反序列化
-        typeAdapter = RuntimeTypeAdapterFactory.of(NewsParserDO.class, "type");
-        parserMapping.forEach((name, clazz) -> typeAdapter.registerSubtype(clazz, name));
+        for (LocatorType locatorType : LocatorType.values()) {
+            fieldTypeAdapter.registerSubtype(locatorType.getClazz(), locatorType.name());
+        }
     }
 }

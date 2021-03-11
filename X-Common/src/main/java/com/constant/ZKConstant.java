@@ -2,8 +2,6 @@ package com.constant;
 
 public class ZKConstant {
 
-    public static final String ZK_SPIDER_ROOT = "/crawlNodes";
-
     //用于短任务的集群
     public static final String Spider_Cluster_Short_ROOT = "/cluster_short";
 

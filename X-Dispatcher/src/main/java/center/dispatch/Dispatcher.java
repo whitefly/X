@@ -5,8 +5,12 @@ import com.constant.QueueForTask;
 import com.constant.RedisConstant;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
-import com.entity.*;
+import com.entity.DispatchLogDO;
+import com.entity.NewsParserDO;
+import com.entity.TaskDO;
+import com.entity.TaskEditVO;
 import com.google.gson.Gson;
+import com.utils.GsonUtil;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -36,7 +40,6 @@ public class Dispatcher {
     @Value("${spider.dispatcher.run:false}")
     private boolean runState;
 
-    Gson gson = new Gson();
 
     @Getter
     @Setter
@@ -104,7 +107,7 @@ public class Dispatcher {
                     .usingJobData("taskId", task.getId())
                     .usingJobData("taskName", task.getName())
                     .usingJobData("fullCrawlData", fullCrawlData)
-                    .usingJobData("taskType", task.getParserType())
+                    .usingJobData("taskType", task.getParserType().name())
                     .build();
 
             CronTrigger trigger = TriggerBuilder
@@ -129,10 +132,10 @@ public class Dispatcher {
         taskEditVO.setTask(task);
         taskEditVO.setParser(parserConfig);
 
-        //为了下游好序列化,设置type
-        if (parserConfig.getType() == null) parserConfig.setType(task.getParserType());
+//        为了下游好序列化,设置type
+        if (parserConfig.getType() == null) parserConfig.setType(task.getParserType().name());
 
-        return gson.toJson(taskEditVO);
+        return GsonUtil.toJson(taskEditVO);
     }
 
 

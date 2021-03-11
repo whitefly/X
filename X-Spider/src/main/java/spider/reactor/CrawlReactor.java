@@ -6,15 +6,16 @@ import com.dao.MongoDao;
 import com.dao.RedisDao;
 import com.dao.ZkDao;
 import com.entity.*;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.mytype.CrawlType;
+import com.utils.GsonUtil;
+import com.utils.TaskUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.RedisSystemException;
 import org.springframework.stereotype.Component;
 import spider.downloader.HtmlUnitDownloader;
+import spider.exception.ProcessorUnserializeError;
 import spider.parser.CustomParser;
 import spider.parser.EpaperParser;
 import spider.parser.IndexParser;
@@ -28,14 +29,12 @@ import us.codecraft.webmagic.processor.PageProcessor;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static com.utils.ParserUtil.typeAdapter;
 import static com.utils.SystemInfoUtil.*;
 
 
@@ -43,24 +42,20 @@ import static com.utils.SystemInfoUtil.*;
 @Component
 public class CrawlReactor {
 
-    @Autowired
-    private MongoDao mongoDao;
+    private final MongoDao mongoDao;
 
-    @Autowired
-    private RedisDao redisDao;
+    private final RedisDao redisDao;
 
-    @Autowired
-    private ZkDao zkDao;
+    private final ZkDao zkDao;
 
-    @Autowired
-    private MongoPipeline mongoPipeline;
+    private final MongoPipeline mongoPipeline;
 
-    @Autowired
-    private NewsHealthPipeLine newsHealthPipeLine;
+    private final NewsHealthPipeLine newsHealthPipeLine;
 
 
     @Value("${spider.crawler.run:false}")
     private volatile boolean reactorState;
+
 
     @Getter
     @Value("${spider.crawler.app:false}")
@@ -69,7 +64,6 @@ public class CrawlReactor {
     private volatile String taskQueue;
     private volatile String nodePath;
 
-    Gson gson = new GsonBuilder().registerTypeAdapterFactory(typeAdapter).create();
 
     private Thread reactorThread;
 
@@ -79,13 +73,17 @@ public class CrawlReactor {
     Map<String, Spider> runningTaskMap = new ConcurrentHashMap<>();
 
 
-//    @Autowired
-//    ChromeDownloader chromeDownloader;
-
-    @Autowired
-    HtmlUnitDownloader htmlUnitDownloader;
+    Downloader dynamicDownloader = new HtmlUnitDownloader();
 
     Downloader baseDownloader = new HttpClientDownloader();
+
+    public CrawlReactor(MongoDao mongoDao, RedisDao redisDao, ZkDao zkDao, MongoPipeline mongoPipeline, NewsHealthPipeLine newsHealthPipeLine) {
+        this.mongoDao = mongoDao;
+        this.redisDao = redisDao;
+        this.zkDao = zkDao;
+        this.mongoPipeline = mongoPipeline;
+        this.newsHealthPipeLine = newsHealthPipeLine;
+    }
 
     @PostConstruct
     void init() {
@@ -95,18 +93,11 @@ public class CrawlReactor {
 
         if (reactorState) {
             //注册zk节点
-            CrawlNode node = new CrawlNode(getHost(), getPid());
-            String info = gson.toJson(node);
-            String myNodePath;
-            if ((myNodePath = zkDao.registerNode2(ZKConstant.Spider_Cluster_Short_ROOT, info)) != null) {
-                nodePath = myNodePath;
+            String info = GsonUtil.toJson(new CrawlNode(getHost(), getPid()));
+
+            if ((nodePath = zkDao.registerNode(ZKConstant.Spider_Cluster_Short_ROOT, info)) != null) {
                 log.info("zk中 {} 注册成功,path: {} 信息: {}", ZKConstant.Spider_Cluster_Short_ROOT, nodePath, info);
-
-                reactorThread = new Thread(() -> {
-                    log.info("线程{} 单节点爬虫启动.....", Thread.currentThread().getName());
-                    startReactor();
-                }, "node");
-
+                reactorThread = new Thread(this::startReactor, "reactor_thread");
                 reactorThread.start();
             } else {
                 log.error("爬虫节点启动注册zk失败,reactor线程未启动");
@@ -117,39 +108,65 @@ public class CrawlReactor {
     }
 
 
-    private static PageProcessor genPageProcessor(TaskDO task, NewsParserDO parser) {
+    private PageProcessor genPageProcessor(TaskDO task, NewsParserDO parser) throws ProcessorUnserializeError {
         //根据不同的类型,封装好不同的爬虫实例
         PageProcessor processor = null;
-        String parserType = task.getParserType();
-        if ("IndexParser".equals(parserType)) {
-            processor = new IndexParser(task, (IndexParserDO) parser);
-        } else if ("电子报Parser".equals(parserType)) {
-            processor = new EpaperParser(task, (EpaperParserDO) parser);
-        } else if ("PageParser".equals(parserType)) {
-            processor = new PageParser(task, (PageParserDO) parser);
-        } else if ("CustomParser".equals(parserType)) {
-            processor = new CustomParser(task, (CustomParserDO) parser);
+        CrawlType parserType = task.getParserType();
+        switch (parserType) {
+            case IndexParser:
+                processor = new IndexParser(task, (IndexParserDO) parser);
+                break;
+            case 电子报Parser:
+                processor = new EpaperParser(task, (EpaperParserDO) parser);
+                break;
+            case PageParser:
+                processor = new PageParser(task, (PageParserDO) parser);
+                break;
+            case CustomParser:
+                processor = new CustomParser(task, (CustomParserDO) parser);
+                break;
         }
+
+        if (processor == null) {
+            throw new ProcessorUnserializeError("无法匹配对应的parserType:" + parserType);
+        }
+
+        //抓取优化流程(主要为了IndexParser)
+        optimizeForProcessor(processor);
+
+        log.info("获取即将启动任务的解析器基本信息:{}", processor);
         return processor;
+    }
+
+    private void optimizeForProcessor(PageProcessor processor) {
+        //优化点:下载网页前,判断之前是否访问过(查询redis)
+        if (processor instanceof IndexParser) {
+            ((IndexParser) processor).setRedisDao(redisDao);
+        }
     }
 
 
     void startReactor() {
-        log.info("监听任务队列: {}", taskQueue);
-        boolean lastRound = true;
-        while (reactorState) {
-            if (lastRound != workState) {
-                log.info(lastRound ? "reactor状态 work -----> free" : "reactor状态 free -----> work");
-            }
+        log.info("线程{} Reactor启动.....", Thread.currentThread().getName());
 
+        log.info("监听任务队列: {}", taskQueue);
+        boolean lastRound = workState;
+        while (reactorState) {
+            checkWorkState(lastRound);
             lastRound = workState;
+
+
             if (workState) {
-                //处于运行状态(监控MQ)
                 doWhenWork();
             } else {
-                //处于非运行状态(定时sleep)
                 doWhenFree();
             }
+        }
+    }
+
+    private void checkWorkState(boolean lastRound) {
+        if (lastRound != workState) {
+            log.info(lastRound ? "reactor状态 work -----> free" : "reactor状态 free -----> work");
         }
     }
 
@@ -163,81 +180,95 @@ public class CrawlReactor {
     }
 
     void doWhenWork() {
-        //监控redis上的某个任务队列
-
+        //监控redis任务队列
         try {
+            String taskEditVOJson = redisDao.take(taskQueue);
 
-            String taskEditVO = redisDao.take(taskQueue);
-            TaskEditVO taskEditVO1 = gson.fromJson(taskEditVO, TaskEditVO.class);
-            TaskDO task = taskEditVO1.getTask();
-            NewsParserDO parser = taskEditVO1.getParser();
+            TaskEditVO taskEditVO = GsonUtil.fromJson(taskEditVOJson, TaskEditVO.class);
+            TaskDO task = taskEditVO.getTask();
+            NewsParserDO parser = taskEditVO.getParser();
             PageProcessor processor = genPageProcessor(task, parser);
-            log.info("获取即将启动爬虫的基本信息:{}", task);
 
-            if (processor == null) {
-                log.warn("无法匹配到正确的spider类型:[{}]", task.getParserType());
-                return;
-            }
-
-            //优化点:若在redis发现访问过了,就直接跳过;
-            // TODO: 2021/3/8 要变成可配置化
-            boolean flag = true;
-            if (processor instanceof IndexParser) {
-                if (flag) {
-                    ((IndexParser) processor).setRedisDao(redisDao);
-                }
-            }
-
-            executorService.submit(() -> runCrawlTask(task, processor));
-
+            executorService.submit(() -> runSpider(task, processor));
         } catch (RedisSystemException e) {
             log.warn("上一轮redis队列监听中断,现在监听队列:{}", taskQueue);
             Thread.interrupted();
+        } catch (ProcessorUnserializeError e) {
+            log.warn("反序列任务错误,执行失败", e);
         }
     }
 
-    private void runCrawlTask(TaskDO task, PageProcessor processor) {
-        long start = System.currentTimeMillis();
 
+    private void runSpider(TaskDO task, PageProcessor processor) {
 
-        CallbackSpider spider = (CallbackSpider) CallbackSpider.create(processor)
-                .addUrl(task.getStartUrl())
-                .addPipeline(newsHealthPipeLine)
-                .addPipeline(mongoPipeline)
+        //获取Spider
+        HookSpider spider = genHookSpider(task, processor);
+
+        //设置钩子函数
+        setSpiderRunningHook(task, spider);
+
+        //启动任务
+        spider.run();
+
+        //日志记录
+        logCrawl(task, spider);
+    }
+
+    private void logCrawl(TaskDO task, HookSpider spider) {
+        //抓取日志记录
+        String extra = spider.isForceStop() ? "中途手动关闭" : null;
+        long pageCount = spider.getPageCount();
+        long end = System.currentTimeMillis();
+        CrawlLogDO crawlLogDO = new CrawlLogDO(spider.getStartTime(), end - spider.getStartTime().getTime(), task.getId(), pageCount, NODE_PID, extra);
+        mongoDao.savaCrawlLog(crawlLogDO);
+    }
+
+    private HookSpider genHookSpider(TaskDO task, PageProcessor processor) {
+        HookSpider spider = (HookSpider) HookSpider.create(processor)
                 .thread(10)
-                .setDownloader(task.isDynamic() ? htmlUnitDownloader : baseDownloader);
+                .setDownloader(task.isDynamic() ? dynamicDownloader : baseDownloader)
+                .addPipeline(newsHealthPipeLine)
+                .addPipeline(mongoPipeline);
 
+        //处理电子报初始url
+        addFirstUrl(task, processor, spider);
+        return spider;
+    }
+
+    private void addFirstUrl(TaskDO task, PageProcessor processor, HookSpider spider) {
+        //主要处理电子报初始url
+        CrawlType parserType = task.getParserType();
+        if (CrawlType.电子报Parser == parserType) {
+            //电子报的格式需要单独处理 {YYYY},{MM},{dd}
+            String todayUrl = TaskUtil.genEpaperUrl(task.getStartUrl());
+            spider.addUrl(todayUrl);
+
+            if (processor instanceof EpaperParser) {
+                ((EpaperParser) processor).setFirstUrl(todayUrl);
+            }
+            log.info("电子报执行初始url: {}", todayUrl);
+        } else {
+            spider.addUrl(task.getStartUrl());
+        }
+    }
+
+    private void setSpiderRunningHook(TaskDO task, HookSpider spider) {
+        //开始前执行(加入管理信息)
         spider.setActionWhenStart(() -> {
-            //管理信息加入任务
             runningTaskMap.put(task.getId(), spider);
             log.info("task管理集合 添加任务:{} {}", task.getName(), task.getId());
         });
 
+        //停止后执行(删除管理信息)
         spider.setActionWhenStop(() -> {
-            //删除管理信息
             String id = task.getId();
-            // TODO: 2021/3/6 如果因为错误导致函数没执行,spider数据一直在,怎么办?
-            //若没有执行,则说明spider就没有退出.退出必然会执行这个
             if (runningTaskMap.containsKey(id)) {
                 runningTaskMap.remove(id);
                 log.info("task管理集合 删除任务:{} {}", task.getName(), task.getId());
             } else {
-                log.error("task管理集合 没发现应该出现的任务信息,出现bug...{} {}", task.getName(), task.getId());
+                log.warn("task管理集合 未发现应该出现的任务信息,出现bug...{} {}", task.getName(), task.getId());
             }
         });
-
-        spider.run();
-        long pageCount = spider.getPageCount();
-        long end = System.currentTimeMillis();
-
-        //上传耗费时间日志
-        CrawlLogDO crawlLogDO = new CrawlLogDO(new Date(start), end - start, task.getId(), pageCount, NODE_PID);
-
-        if (spider.isForceStop()) {
-            crawlLogDO.setExtra("中途手动关闭");
-        }
-
-        mongoDao.savaCrawlLog(crawlLogDO);
     }
 
     public void setWorkState(boolean expect) {
@@ -257,12 +288,12 @@ public class CrawlReactor {
     public void moveNode(String clusterRoot) {
         //zk节点删除
         CrawlNode node = new CrawlNode(getHost(), getPid());
-        String info = gson.toJson(node);
+        String info = GsonUtil.toJson(node);
         zkDao.deleteNode(nodePath);
         log.info("删除zk节点:{}", nodePath);
 
         //zk节点注册
-        nodePath = zkDao.registerNode2(clusterRoot, info);
+        nodePath = zkDao.registerNode(clusterRoot, info);
         log.info("注册zk节点:{}", nodePath);
     }
 
@@ -276,8 +307,8 @@ public class CrawlReactor {
             log.info("找到对应的任务,正在关闭:{}", taskId);
             spider.stop();
             //设置标志位,日志使用
-            if (spider instanceof CallbackSpider) {
-                ((CallbackSpider) spider).setForceStop(true);
+            if (spider instanceof HookSpider) {
+                ((HookSpider) spider).setForceStop(true);
             }
         } else {
             log.warn("未找到对应的任务:{}", taskId);

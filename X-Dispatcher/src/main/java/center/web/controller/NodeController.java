@@ -5,6 +5,7 @@ import center.manager.NodeManager;
 import com.constant.ZKConstant;
 import com.entity.*;
 import com.google.gson.Gson;
+import com.utils.GsonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +24,6 @@ public class NodeController {
     @Autowired
     ClusterManager clusterManager;
 
-    Gson gson = new Gson();
 
     @PostMapping(path = "/all")
     public ResponseVO getAllNodes() {
@@ -43,7 +43,7 @@ public class NodeController {
 
     @PostMapping(path = "/stop")
     public ResponseVO stopNode(@RequestBody String params) {
-        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
         String nodeId = (String) hashMap.get("nodeId");
         nodeManager.sendCmdNodeStop(nodeId);
         return new ResponseVO();
@@ -51,7 +51,7 @@ public class NodeController {
 
     @PostMapping(path = "/start")
     public ResponseVO startNode(@RequestBody String params) {
-        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
         String nodeId = (String) hashMap.get("nodeId");
         nodeManager.sendCmdNodeStart(nodeId);
         return new ResponseVO();
@@ -59,7 +59,7 @@ public class NodeController {
 
     @PostMapping(path = "/move")
     public ResponseVO moveNode(@RequestBody String params) {
-        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
         String nodeId = (String) hashMap.get("nodeId");
         String current = (String) hashMap.get("current");
         String next = current.equals(ZKConstant.Spider_Cluster_Long_ROOT) ? ZKConstant.Spider_Cluster_Short_ROOT : ZKConstant.Spider_Cluster_Long_ROOT;
@@ -69,7 +69,7 @@ public class NodeController {
 
     @PostMapping(path = "/closeTask")
     public ResponseVO stopTask(@RequestBody String params) {
-        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
         String nodeId = (String) hashMap.get("nodeId");
         String taskId = (String) hashMap.get("taskId");
         System.out.println(taskId);
@@ -79,7 +79,7 @@ public class NodeController {
 
     @PostMapping(path = "/kill")
     public ResponseVO killNode(@RequestBody String params) {
-        HashMap hashMap = gson.fromJson(params, HashMap.class);
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
         String nodeId = (String) hashMap.get("nodeId");
         nodeManager.sendCmdNodeKill(nodeId);
         return new ResponseVO();

@@ -1,13 +1,17 @@
 package spider.parser;
 
 import com.entity.CustomParserDO;
-import com.entity.CustomTestInfo;
+import com.entity.TestInfo;
 import com.entity.StepDO;
 import com.entity.TaskDO;
 import spider.utils.RequestUtil;
 import us.codecraft.webmagic.Page;
+import us.codecraft.webmagic.Request;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class TestCustomParser extends CustomParser {
 
@@ -18,21 +22,17 @@ public class TestCustomParser extends CustomParser {
      * @param customParserDO
      */
 
-    CustomTestInfo customTestInfo;
-    AtomicInteger exeCount = new AtomicInteger(0);
-    int limit = 5;
+    TestInfo testInfo;
+    AtomicInteger rest = new AtomicInteger(5);
 
-    public TestCustomParser(TaskDO taskDO, CustomParserDO customParserDO, CustomTestInfo record) {
+    public TestCustomParser(TaskDO taskDO, CustomParserDO customParserDO, TestInfo record) {
         super(taskDO, customParserDO);
-        this.customTestInfo = record;
+        this.testInfo = record;
     }
 
     @Override
     public void process(Page page) {
-        int i = exeCount.addAndGet(1);
-        if (i >= limit) {
-            return;
-        }
+        if (rest.get() < 0) return;
 
         page.setSkip(true);
         if (taskInfo.getStartUrl().equals(page.getUrl().toString())) {
@@ -45,15 +45,38 @@ public class TestCustomParser extends CustomParser {
             //记录运行信息,返回给前端
             hookData(page, stepDO, branch);
         }
+
+        filterRequest(page);
+    }
+
+    private void filterRequest(Page page) {
+        //控制最多只下载5个新页面;
+        int size = page.getTargetRequests().size();
+        int i = rest.get();
+        if (i >= size) {
+            if (!rest.compareAndSet(i, i - size)) {
+                //设置失败,就将新链接直接丢弃,成功就加入下载队列
+                page.getTargetRequests().clear();
+            }
+        } else if (i > 0) {
+            //请求过多,尝试挑出几个下载
+            if (rest.compareAndSet(i, 0)) {
+                List<Request> collect = IntStream.range(0, i).boxed().map(index -> page.getTargetRequests().get(index)).collect(Collectors.toList());
+                page.getTargetRequests().clear();
+                collect.forEach(page::addTargetRequest);
+            }
+        } else {
+            page.getTargetRequests().clear();
+        }
     }
 
     private void hookData(Page page, StepDO stepDO, String branch) {
         //记录解析的正文页
         if (stepDO.isExtract()) {
-            customTestInfo.getNewsUrls().add(page.getRequest().getUrl());
+            testInfo.getNewsUrls().add(page.getRequest().getUrl());
         }
         //记录分支
-        customTestInfo.getBranches().add(branch);
+        testInfo.getBranches().add(branch);
     }
 
 }

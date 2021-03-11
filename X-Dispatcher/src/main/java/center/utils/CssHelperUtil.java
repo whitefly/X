@@ -11,11 +11,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class TaskUtil {
-    static Pattern URL_PAT = Pattern.compile("^(http(s)?:\\/\\/)?([\\w-]+\\.)+[\\w-]+(:\\d{2,5})?(\\/?\\#?[\\w-.\\/?%&=]*)?$");
+public class CssHelperUtil {
 
-
-    //上线后这里要替换,才能加载资源
+    // TODO: 2021/3/10  上线后这里要替换,才能加载资源
     static String baseUri = "http://localhost:8081";
 
     static List<String> LINK_ATTRS_TO_CHANGE = Arrays.asList("href", "src", "data-url", "data-src");

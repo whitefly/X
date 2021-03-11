@@ -12,7 +12,7 @@ import us.codecraft.webmagic.Request;
 
 import java.io.IOException;
 
-import center.utils.TaskUtil;
+import center.utils.CssHelperUtil;
 
 @CrossOrigin
 @Controller
@@ -48,14 +48,14 @@ public class CssHelperController {
 
             Document document = Jsoup.parse(htmlStr, url);
             //若网页调用域内的css和js,会导致资源无法加载出来.此时用正则统一替换为绝对引用base
-            TaskUtil.change2AbsUrl(document);
+            CssHelperUtil.change2AbsUrl(document);
             //注入js和css脚本
-            TaskUtil.insertCssHelperElement(document);
+            CssHelperUtil.insertCssHelperElement(document);
 
             return document.outerHtml();
         } catch (IOException e) {
             log.warn("网页下载失败", e);
-            return "";
+            return "error";
         }
     }
 }

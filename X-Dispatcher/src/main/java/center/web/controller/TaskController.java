@@ -4,18 +4,15 @@ import center.exception.ErrorCode;
 import center.exception.WebException;
 import center.web.service.TaskService;
 import com.entity.*;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.utils.GsonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import spider.parser.CustomParser;
 
 import java.util.List;
 import java.util.Map;
 
 import static center.exception.ErrorCode.SERVICE_TASK_NOT_EXIST;
-import static com.utils.ParserUtil.typeAdapter;
 
 @CrossOrigin
 @Slf4j
@@ -27,12 +24,9 @@ public class TaskController {
     TaskService taskService;
 
 
-    Gson gson = new GsonBuilder().registerTypeAdapterFactory(typeAdapter).create();
-
-
     @PostMapping(path = "/create")
     public ResponseVO createTask(@RequestBody String params) {
-        TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
+        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
         NewsParserDO parser = taskEditVO.getParser();
         taskService.addTask(task, parser);
@@ -46,7 +40,7 @@ public class TaskController {
      */
     @PostMapping(path = "/switch")
     public ResponseVO stopTask(@RequestBody String param) {
-        Map map = gson.fromJson(param, Map.class);
+        Map map = GsonUtil.fromJson(param, Map.class);
         String taskId = (String) map.get("taskId");
         boolean state = (boolean) map.get("state");
         log.info("expect state[{}]: taskId:{}", state, taskId);
@@ -64,7 +58,7 @@ public class TaskController {
      */
     @PostMapping(path = "/update")
     public ResponseVO updateTask(@RequestBody String params) {
-        TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
+        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
         NewsParserDO parser = taskEditVO.getParser();
 
@@ -80,7 +74,7 @@ public class TaskController {
      */
     @PostMapping(path = "/del")
     public ResponseVO delTask(@RequestBody String params) {
-        Map map = gson.fromJson(params, Map.class);
+        Map map = GsonUtil.fromJson(params, Map.class);
         String taskId = (String) map.get("taskId");
 
         taskService.removeTask(taskId);
@@ -89,7 +83,7 @@ public class TaskController {
 
     @PostMapping(path = "/tempStart")
     public ResponseVO tempStart(@RequestBody String params) {
-        Map map = gson.fromJson(params, Map.class);
+        Map map = GsonUtil.fromJson(params, Map.class);
         String taskId = (String) map.get("taskId");
         taskService.temporaryStart(taskId);
         return new ResponseVO();
@@ -105,7 +99,7 @@ public class TaskController {
 
     @PostMapping(path = "/query")
     public ResponseVO queryTask(@RequestBody String params) {
-        Map map = gson.fromJson(params, Map.class);
+        Map map = GsonUtil.fromJson(params, Map.class);
         String taskId = (String) map.get("taskId");
         TaskDO task = taskService.findTask(taskId);
         if (task == null) throw new WebException(SERVICE_TASK_NOT_EXIST);
@@ -124,13 +118,13 @@ public class TaskController {
      */
     @PostMapping(path = "/test/indexParse")
     public ResponseVO testIndex(@RequestBody String params) {
-        TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
+        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
         NewsParserDO parser = taskEditVO.getParser();
         if (parser instanceof IndexParserDO) {
             IndexParserDO indexParser = (IndexParserDO) parser;
-            List<String> links = taskService.testIndex(task, indexParser);
-            return new ResponseVO(links);
+            TestInfo testInfo = taskService.testIndex(task, indexParser);
+            return new ResponseVO(testInfo);
         } else {
             return new ResponseVO(ErrorCode.SERVICE_ERROR);
         }
@@ -143,7 +137,7 @@ public class TaskController {
      */
     @PostMapping(path = "/test/bodyParse")
     public ResponseVO testBody(@RequestBody String params) {
-        TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
+        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
         NewsParserDO parser = taskEditVO.getParser();
 
@@ -156,15 +150,44 @@ public class TaskController {
         }
     }
 
+    @PostMapping(path = "/test/EpaperParse")
+    public ResponseVO testEpaper(@RequestBody String params) {
+        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
+        TaskDO task = taskEditVO.getTask();
+        NewsParserDO parser = taskEditVO.getParser();
+
+        if (parser instanceof EpaperParserDO) {
+            EpaperParserDO parser1 = (EpaperParserDO) parser;
+            TestInfo testInfo = taskService.testEpaper(task, parser1);
+            return new ResponseVO(testInfo);
+        } else {
+            return new ResponseVO(ErrorCode.SERVICE_ERROR);
+        }
+    }
+
     @PostMapping(path = "/test/CustomParse")
     public ResponseVO testCustom(@RequestBody String params) {
-        TaskEditVO taskEditVO = gson.fromJson(params, TaskEditVO.class);
+        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
         NewsParserDO parser = taskEditVO.getParser();
         if (parser instanceof CustomParserDO) {
-            CustomParserDO customParser = (CustomParserDO) parser;
-            CustomTestInfo customTestInfo = taskService.testCustom(task, customParser);
-            return new ResponseVO(customTestInfo);
+            CustomParserDO parser1 = (CustomParserDO) parser;
+            TestInfo testInfo = taskService.testCustom(task, parser1);
+            return new ResponseVO(testInfo);
+        } else {
+            return new ResponseVO(ErrorCode.SERVICE_ERROR);
+        }
+    }
+
+    @PostMapping(path = "/test/PageParse")
+    public ResponseVO testPage(@RequestBody String params) {
+        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
+        TaskDO task = taskEditVO.getTask();
+        NewsParserDO parser = taskEditVO.getParser();
+        if (parser instanceof PageParserDO) {
+            PageParserDO parser1 = (PageParserDO) parser;
+            TestInfo testInfo = taskService.testPage(task, parser1);
+            return new ResponseVO(testInfo);
         } else {
             return new ResponseVO(ErrorCode.SERVICE_ERROR);
         }

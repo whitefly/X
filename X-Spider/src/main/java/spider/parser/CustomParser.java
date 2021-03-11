@@ -45,16 +45,16 @@ public class CustomParser extends NewsParser {
     String executeOneStep(Page page, StepDO step) {
         if (step.isExtract()) {
             ArticleDO articleDO = NewsParserUtil.parseArticle(page, customParser);
-            page.putField("ArticleDO", articleDO);
+            page.putField(ARTICLE_DO_KEY, articleDO);
             page.setSkip(false);
         }
         //解析成其他别名链接
-        List<FieldDO> links = step.getLinks();
+        List<AliasField> links = step.getLinks();
         Map<String, Integer> result = new HashMap<>();
-        for (FieldDO f : links) {
+        for (AliasField f : links) {
             int count = 0;
             if (!StringUtils.isEmpty(f.getAlias())) {
-                List<Request> aliasLinks = RequestUtil.getAliasLinksByField(page, f, f.getAlias());
+                List<Request> aliasLinks = RequestUtil.extractAliasRequest(page, f, f.getAlias());
                 aliasLinks.forEach(page::addTargetRequest);
                 count += aliasLinks.size();
             }
@@ -67,5 +67,14 @@ public class CustomParser extends NewsParser {
     @Override
     public Site getSite() {
         return super.site;
+    }
+
+    @Override
+    public String toString() {
+        return "CustomParser{" +
+                "customParser=" + customParser +
+                ", taskInfo=" + taskInfo +
+                ", newsParserDO=" + newsParserDO +
+                '}';
     }
 }
