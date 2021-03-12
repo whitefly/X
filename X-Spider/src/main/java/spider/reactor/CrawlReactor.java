@@ -6,7 +6,7 @@ import com.dao.MongoDao;
 import com.dao.RedisDao;
 import com.dao.ZkDao;
 import com.entity.*;
-import com.mytype.CrawlType;
+import com.mytype.ParserDOType;
 import com.utils.GsonUtil;
 import com.utils.TaskUtil;
 import lombok.Getter;
@@ -105,11 +105,11 @@ public class CrawlReactor {
     }
 
 
-    private PageProcessor genPageProcessor(TaskDO task, NewsParserDO parser) throws ProcessorUnserializeError {
+    private PageProcessor genPageProcessor(TaskDO task, NewsParserDO parser) {
         //根据不同的类型,封装好不同的爬虫实例
         // TODO: 2021/3/11 后期采用反射来重构
         PageProcessor processor = null;
-        CrawlType parserType = task.getParserType();
+        ParserDOType parserType = task.getParserType();
         switch (parserType) {
             case IndexParser:
                 processor = new IndexParser(task, (IndexParserDO) parser);
@@ -126,10 +126,6 @@ public class CrawlReactor {
             case AjaxParser:
                 processor = new AjaxParser(task, (AjaxParserDO) parser);
                 break;
-        }
-
-        if (processor == null) {
-            throw new ProcessorUnserializeError("无法匹配对应的parserType:" + parserType);
         }
 
         log.info("获取即将启动任务的解析器基本信息:{}", processor);
@@ -152,7 +148,6 @@ public class CrawlReactor {
         while (reactorState) {
             checkWorkState(lastRound);
             lastRound = workState;
-
 
             if (workState) {
                 doWhenWork();
@@ -193,8 +188,6 @@ public class CrawlReactor {
         } catch (RedisSystemException e) {
             log.warn("上一轮redis队列监听中断,现在监听队列:{}", taskQueue);
             Thread.interrupted();
-        } catch (ProcessorUnserializeError e) {
-            log.warn("反序列任务错误,执行失败", e);
         }
     }
 
@@ -237,8 +230,8 @@ public class CrawlReactor {
 
     private void addFirstUrl(TaskDO task, PageProcessor processor, HookSpider spider) {
         //主要处理电子报初始url
-        CrawlType parserType = task.getParserType();
-        if (CrawlType.电子报Parser == parserType) {
+        ParserDOType parserType = task.getParserType();
+        if (ParserDOType.电子报Parser == parserType) {
             //电子报的格式需要单独处理 {YYYY},{MM},{dd}
             String todayUrl = TaskUtil.genEpaperUrl(task.getStartUrl());
             spider.addUrl(todayUrl);

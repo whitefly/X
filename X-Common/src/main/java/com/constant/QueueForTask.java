@@ -1,6 +1,6 @@
 package com.constant;
 
-import com.mytype.CrawlType;
+import com.mytype.ParserDOType;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,7 +11,7 @@ public class QueueForTask {
     public static ConcurrentHashMap<String, String> queueForTask = new ConcurrentHashMap<>();
 
     static {
-        queueForTask.put(CrawlType.PageParser.name(), RedisConstant.DISPATCHER_LONG_TASK_QUEUE_KEY);
-        queueForTask.put(CrawlType.CustomParser.name(), RedisConstant.DISPATCHER_LONG_TASK_QUEUE_KEY);
+        queueForTask.put(ParserDOType.PageParser.name(), RedisConstant.DISPATCHER_LONG_TASK_QUEUE_KEY);
+        queueForTask.put(ParserDOType.CustomParser.name(), RedisConstant.DISPATCHER_LONG_TASK_QUEUE_KEY);
     }
 }

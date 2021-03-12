@@ -2,7 +2,7 @@ package center.web.service;
 
 import center.manager.ClusterManager;
 import center.utils.DynamicUtil;
-import com.mytype.CrawlType;
+import com.mytype.ParserDOType;
 import com.constant.QueueForTask;
 import com.constant.RedisConstant;
 import com.dao.MongoDao;
@@ -12,6 +12,7 @@ import com.entity.*;
 import center.exception.WebException;
 import com.utils.TaskUtil;
 import org.apache.commons.lang3.StringUtils;
+import spider.myenum.CrawlParserType;
 import spider.parser.*;
 import com.utils.FieldUtil;
 import com.utils.UrlUtil;
@@ -23,7 +24,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import spider.pipeline.NothingPipeline;
 import us.codecraft.webmagic.Spider;
+import us.codecraft.webmagic.processor.PageProcessor;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.*;
@@ -297,12 +301,12 @@ public class TaskService {
         }
 
         //验证url是否规范
-        if (!UrlUtil.checkUrl(task.getStartUrl()) && CrawlType.电子报Parser != task.getParserType()) {
+        if (!UrlUtil.checkUrl(task.getStartUrl()) && ParserDOType.电子报Parser != task.getParserType()) {
             throw new WebException(SERVICE_TASK_URL_INVALID);
         }
 
         //验证电子版的模板url是否规范
-        if (CrawlType.电子报Parser == task.getParserType()) {
+        if (ParserDOType.电子报Parser == task.getParserType()) {
             String startUrl = task.getStartUrl();
             if (!TaskUtil.isEpaperStartUrlValid(startUrl)) {
                 throw new WebException(SERVICE_TASK_PAPER_URL_INVALID);
@@ -325,6 +329,45 @@ public class TaskService {
         return parser;
     }
 
+    public TestInfo testParser(TaskDO task, NewsParserDO parserBO) {
+        //统一生成test类
+        PageProcessor processor;
+        ParserDOType parserDOType = task.getParserType();
+        CrawlParserType crawlParserType = CrawlParserType.valueOf(parserDOType.name());
+        Class<? extends NewsParser> testParser = crawlParserType.getTestParser();
+
+        //反射生成类
+        try {
+            Constructor<? extends NewsParser> constructor = testParser.getConstructor(TaskDO.class, parserDOType.getClazz(), TestInfo.class);
+            TestInfo testInfo = new TestInfo();
+            processor = constructor.newInstance(task, parserBO, testInfo);
+            log.info("测试解析器信息: {}", processor);
+            String startUrl = handleSpecial(processor, task);
+
+            Spider app = Spider.create(processor).addUrl(startUrl).addPipeline(new NothingPipeline()).thread(1);
+            return executeTest(task, testInfo, app);
+        } catch (NoSuchMethodException e) {
+            log.error("无法创建通过反射进行实例化..", e);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private String handleSpecial(PageProcessor parser, TaskDO task) {
+        if (parser instanceof TestEpaperParser) {
+            String startUrl = task.getStartUrl();
+            if (!TaskUtil.isEpaperStartUrlValid(startUrl)) throw new WebException(SERVICE_TASK_PAPER_URL_INVALID);
+            return TaskUtil.genEpaperUrl(startUrl);
+        } else {
+            return task.getStartUrl();
+        }
+    }
+
     public TestInfo testIndex(TaskDO task, IndexParserDO indexParser) {
         checkParserInfo(indexParser, true);
 
@@ -332,11 +375,7 @@ public class TaskService {
         TestIndexParser spider = new TestIndexParser(task, indexParser, testInfo);
         //抓取单页面
         Spider app = Spider.create(spider).addUrl(task.getStartUrl()).addPipeline(new NothingPipeline()).thread(1);
-        if (task.isDynamic()) {
-            app.setDownloader(DynamicUtil.dynamicDownloader);
-        }
-        app.run();
-        return testInfo;
+        return executeTest(task, testInfo, app);
     }
 
     public Map<String, Object> testBody(TaskDO task, NewsParserDO indexParserBO, String targetUrl) {

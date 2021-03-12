@@ -110,18 +110,17 @@ public class TaskController {
         return new ResponseVO(taskEditVO);
     }
 
-    // TODO: 2021/3/11 重构后端的测试的controller
-    @PostMapping(path = "/test/IndexParser")
-    public ResponseVO testIndex(@RequestBody String params) {
+    //所有模板测试都走这个统一的接口
+    @PostMapping(path = "/test/template")
+    public ResponseVO testTemplate(@RequestBody String params) {
         TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
         TaskDO task = taskEditVO.getTask();
         NewsParserDO parser = taskEditVO.getParser();
-        if (parser instanceof IndexParserDO) {
-            IndexParserDO indexParser = (IndexParserDO) parser;
-            TestInfo testInfo = taskService.testIndex(task, indexParser);
+        TestInfo testInfo = taskService.testParser(task, parser);
+        if (testInfo != null) {
             return new ResponseVO(testInfo);
         } else {
-            return new ResponseVO(ErrorCode.SERVICE_ERROR);
+            return new ResponseVO(-1, "测试结果为空");
         }
     }
 
@@ -136,63 +135,6 @@ public class TaskController {
             String url = taskEditVO.getTargetUrl();
             Map<String, Object> rnt = taskService.testBody(task, parser, url);
             return new ResponseVO(rnt);
-        } else {
-            return new ResponseVO(ErrorCode.SERVICE_ERROR);
-        }
-    }
-
-    @PostMapping(path = "/test/EpaperParser")
-    public ResponseVO testEpaper(@RequestBody String params) {
-        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
-        TaskDO task = taskEditVO.getTask();
-        NewsParserDO parser = taskEditVO.getParser();
-
-        if (parser instanceof EpaperParserDO) {
-            EpaperParserDO parser1 = (EpaperParserDO) parser;
-            TestInfo testInfo = taskService.testEpaper(task, parser1);
-            return new ResponseVO(testInfo);
-        } else {
-            return new ResponseVO(ErrorCode.SERVICE_ERROR);
-        }
-    }
-
-    @PostMapping(path = "/test/CustomParser")
-    public ResponseVO testCustom(@RequestBody String params) {
-        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
-        TaskDO task = taskEditVO.getTask();
-        NewsParserDO parser = taskEditVO.getParser();
-        if (parser instanceof CustomParserDO) {
-            CustomParserDO parser1 = (CustomParserDO) parser;
-            TestInfo testInfo = taskService.testCustom(task, parser1);
-            return new ResponseVO(testInfo);
-        } else {
-            return new ResponseVO(ErrorCode.SERVICE_ERROR);
-        }
-    }
-
-    @PostMapping(path = "/test/PageParser")
-    public ResponseVO testPage(@RequestBody String params) {
-        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
-        TaskDO task = taskEditVO.getTask();
-        NewsParserDO parser = taskEditVO.getParser();
-        if (parser instanceof PageParserDO) {
-            PageParserDO parser1 = (PageParserDO) parser;
-            TestInfo testInfo = taskService.testPage(task, parser1);
-            return new ResponseVO(testInfo);
-        } else {
-            return new ResponseVO(ErrorCode.SERVICE_ERROR);
-        }
-    }
-
-    @PostMapping(path = "/test/AjaxParser")
-    public ResponseVO testAjax(@RequestBody String params) {
-        TaskEditVO taskEditVO = GsonUtil.fromJson(params, TaskEditVO.class);
-        TaskDO task = taskEditVO.getTask();
-        NewsParserDO parser = taskEditVO.getParser();
-        if (parser instanceof AjaxParserDO) {
-            AjaxParserDO parser1 = (AjaxParserDO) parser;
-            TestInfo testInfo = taskService.testAjax(task, parser1);
-            return new ResponseVO(testInfo);
         } else {
             return new ResponseVO(ErrorCode.SERVICE_ERROR);
         }

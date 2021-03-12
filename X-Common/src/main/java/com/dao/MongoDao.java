@@ -307,4 +307,31 @@ public class MongoDao {
         query.limit(ARTICLE_PAGE_COUNT).skip((page - 1) * ARTICLE_PAGE_COUNT).with(Sort.by(Sort.Direction.DESC, "ctime"));
         return mongoTemplate.find(query, DispatchLogDO.class);
     }
+
+    //---------------------------------------------------------------
+    //Subscribe表
+
+    public void insertGroup(SubscribeGroupDO group) {
+        //增加
+        mongoTemplate.insert(group);
+    }
+
+    public boolean deleteGroup(String groupId) {
+        //删除
+        Query query = new Query(Criteria.where("id").is(groupId));
+        DeleteResult remove = mongoTemplate.remove(query, SubscribeGroupDO.class);
+        return remove.getDeletedCount() >= 1;
+    }
+
+    public SubscribeGroupDO findGroupById(String groupId) {
+        //查询
+        return mongoTemplate.findById(groupId, SubscribeGroupDO.class);
+    }
+
+    public void updateGroup(SubscribeGroupDO group) {
+        //更新
+        mongoTemplate.save(group);
+    }
+
+
 }

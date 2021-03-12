@@ -1,6 +1,6 @@
 package com.entity;
 
-import com.mytype.CrawlType;
+import com.mytype.ParserDOType;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
@@ -8,7 +8,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.Date;
-import java.util.Map;
 
 @Document("task")
 @Data
@@ -23,7 +22,7 @@ public class TaskDO {
     private String startUrl;
 
     @Field("parser_type")
-    private CrawlType parserType;
+    private ParserDOType parserType;
 
     @Field("parser_id")
     String parserId;

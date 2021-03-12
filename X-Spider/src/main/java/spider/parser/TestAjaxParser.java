@@ -4,6 +4,7 @@ import com.entity.AjaxParserDO;
 import com.entity.TaskDO;
 import com.entity.TestInfo;
 import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import spider.utils.RequestUtil;
 import us.codecraft.webmagic.Page;
@@ -11,6 +12,7 @@ import us.codecraft.webmagic.Page;
 import java.util.List;
 
 @Slf4j
+@ToString
 public class TestAjaxParser extends AjaxParser {
 
     @Getter

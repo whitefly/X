@@ -4,6 +4,7 @@ import com.entity.CustomParserDO;
 import com.entity.TestInfo;
 import com.entity.StepDO;
 import com.entity.TaskDO;
+import lombok.ToString;
 import spider.utils.RequestUtil;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Request;
@@ -13,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+@ToString
 public class TestCustomParser extends CustomParser {
 
     /**
@@ -78,5 +80,6 @@ public class TestCustomParser extends CustomParser {
         //记录分支
         testInfo.getBranches().add(branch);
     }
+
 
 }

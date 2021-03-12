@@ -4,6 +4,7 @@ import com.entity.TestInfo;
 import com.entity.EpaperParserDO;
 import com.entity.TaskDO;
 import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import spider.utils.RequestUtil;
 import us.codecraft.webmagic.Page;
@@ -14,6 +15,7 @@ import java.util.List;
  * 用于电子版的版面测试
  */
 @Slf4j
+@ToString
 public class TestEpaperParser extends EpaperParser {
 
 

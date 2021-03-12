@@ -4,6 +4,7 @@ import com.entity.ArticleDO;
 import com.entity.NewsParserDO;
 import com.entity.TaskDO;
 import lombok.Getter;
+import lombok.ToString;
 import spider.utils.NewsParserUtil;
 import us.codecraft.webmagic.Page;
 
@@ -12,6 +13,8 @@ import java.util.Map;
 /**
  * 用来测试正文抓取情况的
  */
+
+@ToString
 public class TestBodyParser extends NewsParser {
 
     @Getter

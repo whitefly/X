@@ -1,11 +1,8 @@
 package com.utils;
 
-import com.mytype.CrawlType;
+import com.mytype.ParserDOType;
 import com.entity.*;
 import com.mytype.LocatorType;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ParserUtil {
     // ParserDO的反序列化适配器
@@ -16,7 +13,7 @@ public class ParserUtil {
 
     static {
         // TODO: 2021/3/11 尝试用循环来批量导入
-        for (CrawlType crawlType : CrawlType.values()) {
+        for (ParserDOType crawlType : ParserDOType.values()) {
             typeAdapter.registerSubtype(crawlType.getClazz(), crawlType.name());
         }
 
