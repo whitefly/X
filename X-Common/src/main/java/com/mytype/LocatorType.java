@@ -23,9 +23,9 @@ public enum LocatorType {
     ExtraLocator(ExtraField.class);
 
     @Getter
-    private Class<? extends FieldDO> clazz;
+    private final Class<? extends FieldDO> FieldClazz;
 
     LocatorType(Class<? extends FieldDO> clazz) {
-        this.clazz = clazz;
+        this.FieldClazz = clazz;
     }
 }

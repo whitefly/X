@@ -4,7 +4,7 @@ import com.mytype.ParserDOType;
 import com.entity.*;
 import com.mytype.LocatorType;
 
-public class ParserUtil {
+public class ParserDeserializationUtil {
     // ParserDO的反序列化适配器
     public static RuntimeTypeAdapterFactory<NewsParserDO> typeAdapter = RuntimeTypeAdapterFactory.of(NewsParserDO.class, "type");
 
@@ -18,7 +18,7 @@ public class ParserUtil {
         }
 
         for (LocatorType locatorType : LocatorType.values()) {
-            fieldTypeAdapter.registerSubtype(locatorType.getClazz(), locatorType.name());
+            fieldTypeAdapter.registerSubtype(locatorType.getFieldClazz(), locatorType.name());
         }
     }
 }

@@ -22,21 +22,6 @@ import java.util.regex.Pattern;
 
 @Slf4j
 public class DocUtil {
-    static final int LEN_LIMIT = 30;
-
-
-
-
-    /**
-     * 简化标题或者文字长度,用于前端显示
-     *
-     * @param content
-     * @return
-     */
-    public static String simplify(String content) {
-        if (StringUtils.isEmpty(content) || content.length() <= LEN_LIMIT) return content;
-        return content.substring(0, LEN_LIMIT) + "...";
-    }
 
     public static void convertToExcel(HttpServletResponse response, List<ArticleDO> data) {
         response.setContentType("application/vnd.ms-excel");

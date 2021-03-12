@@ -3,13 +3,13 @@ package com.utils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import static com.utils.ParserUtil.fieldTypeAdapter;
-import static com.utils.ParserUtil.typeAdapter;
+import static com.utils.ParserDeserializationUtil.typeAdapter;
+import static com.utils.ParserDeserializationUtil.fieldTypeAdapter;
 
 public class GsonUtil {
     public static final Gson gson = new GsonBuilder()
             .registerTypeAdapterFactory(typeAdapter)
-//            .registerTypeAdapterFactory(fieldTypeAdapter)
+            .registerTypeAdapterFactory(fieldTypeAdapter)
             .create();
 
 

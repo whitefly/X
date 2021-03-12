@@ -1,15 +1,10 @@
 package center.web.controller;
 
 import com.entity.*;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.utils.GsonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-
-import static com.utils.ParserUtil.fieldTypeAdapter;
-import static com.utils.ParserUtil.typeAdapter;
 
 @CrossOrigin
 @Controller

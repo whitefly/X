@@ -40,38 +40,25 @@ import static com.utils.SystemInfoUtil.*;
 public class CrawlReactor {
 
     private final MongoDao mongoDao;
-
     private final RedisDao redisDao;
-
     private final ZkDao zkDao;
-
     private final MongoPipeline mongoPipeline;
-
     private final NewsHealthPipeLine newsHealthPipeLine;
 
 
     @Value("${spider.crawler.run:false}")
     private volatile boolean reactorState;
 
-
     @Getter
     @Value("${spider.crawler.app:false}")
     private volatile boolean workState;
-
     private volatile String taskQueue;
     private volatile String nodePath;
 
-
     private Thread reactorThread;
-
     ExecutorService executorService = Executors.newFixedThreadPool(8);
-
-    //正在执行的任务
     Map<String, Spider> runningTaskMap = new ConcurrentHashMap<>();
-
-
     Downloader dynamicDownloader = new HtmlUnitDownloader();
-
     Downloader baseDownloader = new HttpClientDownloader();
 
     public CrawlReactor(MongoDao mongoDao, RedisDao redisDao, ZkDao zkDao, MongoPipeline mongoPipeline, NewsHealthPipeLine newsHealthPipeLine) {
@@ -107,7 +94,7 @@ public class CrawlReactor {
 
     private PageProcessor genPageProcessor(TaskDO task, NewsParserDO parser) {
         //根据不同的类型,封装好不同的爬虫实例
-        // TODO: 2021/3/11 后期采用反射来重构
+        // TODO: 2021/3/11 后期采用反射来重构(这里属于热点代码,反射可能会降低性能)
         PageProcessor processor = null;
         ParserDOType parserType = task.getParserType();
         switch (parserType) {
@@ -142,7 +129,6 @@ public class CrawlReactor {
 
     void startReactor() {
         log.info("线程{} Reactor启动.....", Thread.currentThread().getName());
-
         log.info("监听任务队列: {}", taskQueue);
         boolean lastRound = workState;
         while (reactorState) {

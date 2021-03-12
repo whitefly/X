@@ -1,20 +1,17 @@
 package center.web.service;
 
+import center.dispatch.Dispatcher;
+import center.exception.WebException;
 import center.manager.ClusterManager;
 import center.utils.DynamicUtil;
-import com.mytype.ParserDOType;
+import center.utils.TaskCheckerUtil;
 import com.constant.QueueForTask;
 import com.constant.RedisConstant;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
-import center.dispatch.Dispatcher;
 import com.entity.*;
-import center.exception.WebException;
+import com.mytype.ParserDOType;
 import com.utils.TaskUtil;
-import org.apache.commons.lang3.StringUtils;
-import spider.myenum.CrawlParserType;
-import spider.parser.*;
-import com.utils.FieldUtil;
 import com.utils.UrlUtil;
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +19,10 @@ import org.apache.commons.collections.CollectionUtils;
 import org.quartz.CronExpression;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import spider.myenum.CrawlParserType;
+import spider.parser.NewsParser;
+import spider.parser.TestBodyParser;
+import spider.parser.TestEpaperParser;
 import spider.pipeline.NothingPipeline;
 import us.codecraft.webmagic.Spider;
 import us.codecraft.webmagic.processor.PageProcessor;
@@ -201,66 +202,8 @@ public class TaskService {
     private void checkParserInfo(NewsParserDO parser, boolean create) {
         if (!create) existIndexParser(parser.getId());
 
-        //验证extra的格式
-        checkExtrasIsValid(parser.getExtra());
+        TaskCheckerUtil.checkParserInfo(parser);
 
-        //根据配置类型不同 分开进行检查
-        if (parser instanceof IndexParserDO) {
-            //目录定位不能为空
-            IndexParserDO indexParserDO = (IndexParserDO) parser;
-            if (FieldUtil.checkFieldsNotHasLocator(indexParserDO.getIndexRule())) {
-                throw new WebException(SERVICE_PARSER_FIELD_LOCATOR_MISS);
-            }
-        }
-
-        if (parser instanceof PageParserDO) {
-            PageParserDO parserDO = (PageParserDO) parser;
-            if (!FieldUtil.checkParamNotEmpty(parserDO.getPageRule())) {
-                throw new WebException(SERVICE_PARSER_FIELD_LOCATOR_MISS);
-            }
-        }
-
-        if (parser instanceof EpaperParserDO) {
-            EpaperParserDO parserDO = (EpaperParserDO) parser;
-            if (!FieldUtil.checkParamNotEmpty(parserDO.getLayoutRule())) {
-                throw new WebException(SERVICE_PARSER_FIELD_LOCATOR_MISS);
-            }
-        }
-
-        //处理自定义流程的合法性
-        if (parser instanceof CustomParserDO) {
-            CustomParserDO parserDO = (CustomParserDO) parser;
-            List<StepDO> customRule = parserDO.getCustomRule();
-
-            for (StepDO step : customRule) {
-                boolean isValid = FieldUtil.checkStepIsValid(step);
-                if (!isValid) throw new WebException(SERVICE_PARSER_CUSTOM_ERROR);
-            }
-        }
-
-    }
-
-    private void checkExtrasIsValid(List<ExtraField> fields) {
-        //允许不设定额外属性
-        if (CollectionUtils.isEmpty(fields)) return;
-
-        for (ExtraField f : fields) {
-            checkExtraIsValid(f);
-        }
-
-        //验证是否有重名
-        Set<String> set = fields.stream().map(FieldDO::getName).collect(Collectors.toSet());
-        if (fields.size() != set.size()) throw new WebException(SERVICE_PARSER_FIELD_DUP);
-    }
-
-    private void checkExtraIsValid(ExtraField f) {
-        //属性名不能为空
-        if (StringUtils.isEmpty(f.getName())) throw new WebException(SERVICE_PARSER_MISS_FIELD_NAME);
-
-        //定位器可以为空,会使用全局范围
-
-        //类别不能为空
-        if (f.getExtraType() == null) throw new WebException(SERVICE_PARSER_MISS_FIELD_TYPE);
     }
 
     private void checkTaskInfo(TaskDO task, boolean create) {
@@ -269,7 +212,7 @@ public class TaskService {
         if (!create) old = existTask(task.getId());
 
         //  验证必须的参数是否完整
-        if (!FieldUtil.checkParamNotEmpty(
+        if (!TaskCheckerUtil.checkParamNotEmpty(
                 task.getName(),
                 task.getStartUrl(),
                 task.getCron(),
@@ -330,6 +273,7 @@ public class TaskService {
     }
 
     public TestInfo testParser(TaskDO task, NewsParserDO parserBO) {
+        checkParserInfo(parserBO, true);
         //统一生成test类
         PageProcessor processor;
         ParserDOType parserDOType = task.getParserType();
@@ -368,15 +312,6 @@ public class TaskService {
         }
     }
 
-    public TestInfo testIndex(TaskDO task, IndexParserDO indexParser) {
-        checkParserInfo(indexParser, true);
-
-        TestInfo testInfo = new TestInfo();
-        TestIndexParser spider = new TestIndexParser(task, indexParser, testInfo);
-        //抓取单页面
-        Spider app = Spider.create(spider).addUrl(task.getStartUrl()).addPipeline(new NothingPipeline()).thread(1);
-        return executeTest(task, testInfo, app);
-    }
 
     public Map<String, Object> testBody(TaskDO task, NewsParserDO indexParserBO, String targetUrl) {
         checkParserInfo(indexParserBO, true);
@@ -391,54 +326,6 @@ public class TaskService {
         return rnt;
     }
 
-
-    //电子报模板测试按钮
-    public TestInfo testEpaper(TaskDO task, EpaperParserDO parserDO) {
-        checkParserInfo(parserDO, true);
-
-        TestInfo testInfo = new TestInfo();
-        TestEpaperParser spider = new TestEpaperParser(task, parserDO, testInfo);
-        String startUrl = task.getStartUrl();
-        if (!TaskUtil.isEpaperStartUrlValid(startUrl)) throw new WebException(SERVICE_TASK_PAPER_URL_INVALID);
-
-        String todayUrl = TaskUtil.genEpaperUrl(startUrl);
-        spider.setFirstUrl(todayUrl);
-        Spider app = Spider.create(spider).addUrl(todayUrl).thread(1).addPipeline(new NothingPipeline());
-
-        return executeTest(task, testInfo, app);
-    }
-
-    //PageParser模板测试
-    public TestInfo testPage(TaskDO task, PageParserDO parserDO) {
-        checkParserInfo(parserDO, true);
-
-        TestInfo testInfo = new TestInfo();
-        TestPageParser spider = new TestPageParser(task, parserDO, testInfo);
-        Spider app = Spider.create(spider).addUrl(task.getStartUrl()).thread(1).addPipeline(new NothingPipeline());
-
-        return executeTest(task, testInfo, app);
-    }
-
-    //PageParser模板测试
-    public TestInfo testAjax(TaskDO task, AjaxParserDO parserDO) {
-        checkParserInfo(parserDO, true);
-
-        TestInfo testInfo = new TestInfo();
-        TestAjaxParser spider = new TestAjaxParser(task, parserDO, testInfo);
-        Spider app = Spider.create(spider).addUrl(task.getStartUrl()).thread(1).addPipeline(new NothingPipeline());
-        return executeTest(task, testInfo, app);
-    }
-
-
-    //自定义模板测试
-    public TestInfo testCustom(TaskDO task, CustomParserDO parserDO) {
-        checkParserInfo(parserDO, true);
-
-        TestInfo testInfo = new TestInfo();
-        TestCustomParser spider = new TestCustomParser(task, parserDO, testInfo);
-        Spider app = Spider.create(spider).addUrl(task.getStartUrl()).thread(1).addPipeline(new NothingPipeline());
-        return executeTest(task, testInfo, app);
-    }
 
     private TestInfo executeTest(TaskDO task, TestInfo testInfo, Spider app) {
         if (task.isDynamic()) {
