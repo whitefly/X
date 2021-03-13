@@ -2,13 +2,11 @@ package com.dao;
 
 import com.constant.RedisConstant;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.ListOperations;
-import org.springframework.data.redis.core.SetOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -51,7 +49,11 @@ public class RedisDao {
     public void addSet(String key, String value) {
         SetOperations<String, String> setOp = redisTemplate.opsForSet();
         setOp.add(key, value);
+    }
 
+    public void delMember(String key, String value) {
+        SetOperations<String, String> setOp = redisTemplate.opsForSet();
+        setOp.remove(key, value);
     }
 
     public void delSet(String key) {
@@ -73,4 +75,23 @@ public class RedisDao {
         return op.multiGet(keys);
     }
 
+    public void addMap(String key, String hKey, String hValue) {
+        HashOperations<String, String, String> op = redisTemplate.opsForHash();
+        op.put(key, hKey, hValue);
+    }
+
+    public void delMap(String key, String hKey) {
+        HashOperations<String, String, Object> op = redisTemplate.opsForHash();
+        op.delete(key, hKey);
+    }
+
+    public String getPair(String key, String hKey) {
+        HashOperations<String, String, String> op = redisTemplate.opsForHash();
+        return op.get(key, hKey);
+    }
+
+    public Map<String, String> getMap(String key) {
+        HashOperations<String, String, String> op = redisTemplate.opsForHash();
+        return op.entries(key);
+    }
 }

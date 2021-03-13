@@ -15,6 +15,7 @@ import org.springframework.util.StringUtils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
@@ -118,6 +119,11 @@ public class MongoDao {
      */
     public TaskDO findTaskById(String id) {
         return mongoTemplate.findById(id, TaskDO.class);
+    }
+
+    public List<TaskDO> findTaskByIds(List<String> ids) {
+        Query query = new Query(Criteria.where("id").in(ids));
+        return mongoTemplate.find(query, TaskDO.class);
     }
 
 
@@ -241,6 +247,14 @@ public class MongoDao {
         return mongoTemplate.findById(articleId, ArticleDO.class);
     }
 
+    public long delArticle(String articleId) {
+        if (StringUtils.isEmpty(articleId)) return 0;
+
+        Query query = new Query(Criteria.where("id").is(articleId));
+        DeleteResult remove = mongoTemplate.remove(query, ArticleDO.class);
+        return remove.getDeletedCount();
+    }
+
     /**
      * 统计7天的数据量
      */
@@ -316,6 +330,10 @@ public class MongoDao {
         mongoTemplate.insert(group);
     }
 
+    public List<SubscribeGroupDO> listGroups() {
+        return mongoTemplate.find(new Query(), SubscribeGroupDO.class);
+    }
+
     public boolean deleteGroup(String groupId) {
         //删除
         Query query = new Query(Criteria.where("id").is(groupId));
@@ -326,6 +344,12 @@ public class MongoDao {
     public SubscribeGroupDO findGroupById(String groupId) {
         //查询
         return mongoTemplate.findById(groupId, SubscribeGroupDO.class);
+    }
+
+    public List<SubscribeGroupDO> findGroupByIds(Collection<String> groupIds) {
+        //根据ids批量查询
+        Query query = new Query(Criteria.where("id").in(groupIds));
+        return mongoTemplate.find(query, SubscribeGroupDO.class);
     }
 
     public void updateGroup(SubscribeGroupDO group) {

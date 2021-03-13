@@ -1,12 +1,17 @@
 package center.web.controller;
 
 import center.web.service.GroupService;
+import center.web.service.TaskService;
 import com.entity.ResponseVO;
+import com.entity.SubscribeGroupDO;
+import com.entity.TaskDO;
 import com.utils.GsonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @CrossOrigin
@@ -18,12 +23,21 @@ public class GroupController {
     @Autowired
     GroupService groupService;
 
+    @Autowired
+    TaskService taskService;
+
     @PostMapping("/create")
     public ResponseVO createGroup(@RequestBody String params) {
         Map map = GsonUtil.fromJson(params, Map.class);
         String groupName = (String) map.get("groupName");
         groupService.createGroup(groupName);
         return new ResponseVO();
+    }
+
+    @PostMapping("/list")
+    public ResponseVO groupList() {
+        List<SubscribeGroupDO> subscribeGroupDOS = groupService.groupList();
+        return new ResponseVO(subscribeGroupDOS);
     }
 
     @PostMapping("/del")
@@ -61,4 +75,13 @@ public class GroupController {
         return new ResponseVO();
     }
 
+    @PostMapping("/taskMapping")
+    public ResponseVO taskMapping(@RequestBody String params) {
+        Map map = GsonUtil.fromJson(params, Map.class);
+        List<String> taskIds = (List<String>) map.get("taskIds");
+        List<TaskDO> tasksByIds = taskService.findTasksByIds(taskIds);
+        Map<String, String> nameMapping = new HashMap<>();
+        tasksByIds.forEach(x -> nameMapping.put(x.getId(), x.getName()));
+        return new ResponseVO(nameMapping);
+    }
 }

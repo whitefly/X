@@ -45,4 +45,8 @@ public class HookSpider extends Spider {
         super.run();
         if (actionAfterStop != null) actionAfterStop.run();
     }
+
+    public PageProcessor getParser() {
+        return this.pageProcessor;
+    }
 }

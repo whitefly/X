@@ -89,4 +89,13 @@ public class DocService {
         redisDao.delSet(hashKey);
         log.info("删除redis set:" + hashKey);
     }
+
+    public void delDoc(String docId) {
+        ArticleDO news = mongoDao.findArticleByArticleId(docId);
+        long l = mongoDao.delArticle(news.getId());
+        //删除redis中的指纹
+        String hashKey = RedisConstant.getExtractedKey(news.getTaskId());
+        redisDao.delMember(hashKey, news.getUrl());
+        log.info("删除redis set[ {} ]的成员[ {} ]", hashKey, news.getUrl());
+    }
 }

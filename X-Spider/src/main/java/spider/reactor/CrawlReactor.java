@@ -2,6 +2,7 @@ package spider.reactor;
 
 import com.constant.RedisConstant;
 import com.constant.ZKConstant;
+import com.dao.MailDao;
 import com.dao.MongoDao;
 import com.dao.RedisDao;
 import com.dao.ZkDao;
@@ -11,11 +12,12 @@ import com.utils.GsonUtil;
 import com.utils.TaskUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.text.StrBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.RedisSystemException;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import spider.downloader.HtmlUnitDownloader;
-import spider.exception.ProcessorUnserializeError;
 import spider.parser.*;
 import spider.pipeline.MongoPipeline;
 import spider.pipeline.NewsHealthPipeLine;
@@ -25,12 +27,11 @@ import us.codecraft.webmagic.downloader.HttpClientDownloader;
 import us.codecraft.webmagic.processor.PageProcessor;
 
 import javax.annotation.PostConstruct;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.utils.SystemInfoUtil.*;
 
@@ -41,6 +42,7 @@ public class CrawlReactor {
 
     private final MongoDao mongoDao;
     private final RedisDao redisDao;
+    private final MailDao mailDao;
     private final ZkDao zkDao;
     private final MongoPipeline mongoPipeline;
     private final NewsHealthPipeLine newsHealthPipeLine;
@@ -61,9 +63,10 @@ public class CrawlReactor {
     Downloader dynamicDownloader = new HtmlUnitDownloader();
     Downloader baseDownloader = new HttpClientDownloader();
 
-    public CrawlReactor(MongoDao mongoDao, RedisDao redisDao, ZkDao zkDao, MongoPipeline mongoPipeline, NewsHealthPipeLine newsHealthPipeLine) {
+    public CrawlReactor(MongoDao mongoDao, RedisDao redisDao, MailDao mailDao, ZkDao zkDao, MongoPipeline mongoPipeline, NewsHealthPipeLine newsHealthPipeLine) {
         this.mongoDao = mongoDao;
         this.redisDao = redisDao;
+        this.mailDao = mailDao;
         this.zkDao = zkDao;
         this.mongoPipeline = mongoPipeline;
         this.newsHealthPipeLine = newsHealthPipeLine;
@@ -123,6 +126,13 @@ public class CrawlReactor {
         //优化点:下载网页前,判断之前是否访问过(查询redis)
         if (processor instanceof IndexParser) {
             ((IndexParser) processor).setRedisDao(redisDao);
+
+            // TODO: 2021/3/13 后期需要灵活配置化,现在这些分布太散了
+            //记录新采集的新闻个数(排除分页模板,太多了,怕内存爆掉)
+            //其实感觉没有必要线程安全,webMagic框架的解析处理是个单线程...
+            if (!(processor instanceof PageParser)) {
+                ((IndexParser) processor).setFreshNews(Collections.synchronizedList(new ArrayList<>()));
+            }
         }
     }
 
@@ -167,6 +177,7 @@ public class CrawlReactor {
             TaskDO task = taskEditVO.getTask();
             NewsParserDO parser = taskEditVO.getParser();
             PageProcessor processor = genPageProcessor(task, parser);
+
             //抓取优化流程(主要为了IndexParser)
             optimizeForProcessor(processor);
 
@@ -174,6 +185,8 @@ public class CrawlReactor {
         } catch (RedisSystemException e) {
             log.warn("上一轮redis队列监听中断,现在监听队列:{}", taskQueue);
             Thread.interrupted();
+        }catch (Exception e){
+            log.error("初始化任务失败..",e);
         }
     }
 
@@ -191,7 +204,57 @@ public class CrawlReactor {
 
         //日志记录
         logCrawl(task, spider);
+
+        //邮件通知
+        freshMail(task, spider);
     }
+
+    private void freshMail(TaskDO task, HookSpider spider) {
+        PageProcessor processor = spider.getParser();
+        NewsParser parser;
+        List<ArticleDO> freshNews = null;
+        if (processor instanceof NewsParser) {
+            parser = (NewsParser) processor;
+            freshNews = parser.getFreshNews();
+            if (CollectionUtils.isEmpty(freshNews)) return;
+        }
+
+        String subscribeKey = RedisConstant.getSubscribeKey(task.getId());
+        Map<String, String> map = redisDao.getMap(subscribeKey);
+        if (CollectionUtils.isEmpty(map)) return;
+
+        // TODO: 2021/3/13 暂时只实现更新即发送邮件(关键词触发以后再实现)
+        //查询符合的订阅组
+        Set<String> subscribeGroupIds = map.keySet();
+        List<SubscribeGroupDO> groupByIds = mongoDao.findGroupByIds(subscribeGroupIds);
+
+        //发送邮件
+        List<ArticleDO> finalFreshNews = freshNews;
+        groupByIds.forEach(group -> {
+            String userId = group.getUserId();
+            if ("admin".equals(userId)) {
+                String subject = String.format("订阅组[%s] 新数据采集: %d", group.getGroupName(), finalFreshNews.size());
+                String body = mailContent(task, finalFreshNews);
+                mailDao.sendMail("316447676@qq.com", subject, body);
+            }
+        });
+    }
+
+    private String mailContent(TaskDO task, List<ArticleDO> articles) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("任务[").append(task.getName()).append("]").append(" 初始url:[ ").append(task.getStartUrl()).append(" ]").append("\n\n");
+
+        int size = articles.size();
+        for (int i = 0; i < size; i++) {
+            ArticleDO articleDO = articles.get(i);
+            sb.append("  ").append(i + 1).append(". ").append("\n");
+            sb.append("     ").append("标题: ").append(articleDO.getTitle()).append("\n");
+            sb.append("     ").append("url: ").append(articleDO.getUrl()).append("\n");
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
 
     private void logCrawl(TaskDO task, HookSpider spider) {
         //抓取日志记录

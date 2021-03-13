@@ -11,6 +11,10 @@ import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Site;
 import us.codecraft.webmagic.processor.PageProcessor;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * 最底层的正文处理器,其他处理器最终都会解析正文,所以都会继承它
  */
@@ -19,6 +23,13 @@ public class NewsParser implements PageProcessor {
 
     public static final String ARTICLE_DO_KEY = "ArticleDO";
     static final String NEWS_URL_ALIAS = "正文页";
+
+    //用来记录更新个数(更新通知的模块需要)
+    @Getter
+    @Setter
+    List<ArticleDO> freshNews;
+
+
     Site site = Site
             .me()
             .setSleepTime(0)
@@ -45,6 +56,11 @@ public class NewsParser implements PageProcessor {
         //把整个对象放入map中的ArticleDO中,在pipeline去存出
         page.putField(ARTICLE_DO_KEY, articleDO);
         page.setSkip(false);
+
+        //统计
+        if (freshNews != null) {
+            freshNews.add(articleDO);
+        }
     }
 
 

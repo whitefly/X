@@ -55,6 +55,15 @@ public class DocController {
         return new ResponseVO();
     }
 
+    @PostMapping(path = "/del")
+    public ResponseVO delArticle(@RequestBody String params) {
+        HashMap hashMap = GsonUtil.fromJson(params, HashMap.class);
+        String articleId = (String) hashMap.get("articleId");
+        docService.delDoc(articleId);
+        return new ResponseVO();
+    }
+
+
     @GetMapping(path = "/download")
     public void downloadExcel(HttpServletResponse response, @RequestParam(value = "pageIndex") Integer pageIndex,
                               @RequestParam(value = "taskId") String taskId) {

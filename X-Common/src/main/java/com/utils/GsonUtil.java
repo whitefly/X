@@ -9,7 +9,7 @@ import static com.utils.ParserDeserializationUtil.fieldTypeAdapter;
 public class GsonUtil {
     public static final Gson gson = new GsonBuilder()
             .registerTypeAdapterFactory(typeAdapter)
-            .registerTypeAdapterFactory(fieldTypeAdapter)
+//            .registerTypeAdapterFactory(fieldTypeAdapter)
             .create();
 
 

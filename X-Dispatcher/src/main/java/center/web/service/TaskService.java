@@ -106,6 +106,10 @@ public class TaskService {
         return mongoDao.findTaskById(taskId);
     }
 
+    public List<TaskDO> findTasksByIds(List<String> ids) {
+        return  mongoDao.findTaskByIds(ids);
+    }
+
     public NewsParserDO findNewsParser(String parserId) {
         return mongoDao.findNewsParserById(parserId);
     }
@@ -306,7 +310,9 @@ public class TaskService {
         if (parser instanceof TestEpaperParser) {
             String startUrl = task.getStartUrl();
             if (!TaskUtil.isEpaperStartUrlValid(startUrl)) throw new WebException(SERVICE_TASK_PAPER_URL_INVALID);
-            return TaskUtil.genEpaperUrl(startUrl);
+            String url = TaskUtil.genEpaperUrl(startUrl);
+            ((TestEpaperParser) parser).setFirstUrl(url);
+            return url;
         } else {
             return task.getStartUrl();
         }
