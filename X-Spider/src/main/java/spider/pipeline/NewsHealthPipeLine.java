@@ -57,7 +57,7 @@ public class NewsHealthPipeLine implements Pipeline {
         } else if (extraMiss) {
             //自定义字段无数据
             article.setState(NewsState.EXTRA_MISS.getDescribe());
-        } else if (illegalWordsSearch.ContainsAny(content)) {
+        } else if (illegalWordsSearch != null && illegalWordsSearch.ContainsAny(content)) {
             //含有敏感词
             IllegalWordsSearchResult illegalWordsSearchResult = illegalWordsSearch.FindFirst(content);
             String keyword = illegalWordsSearchResult.Keyword;

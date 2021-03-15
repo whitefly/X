@@ -53,6 +53,11 @@ public class NewsParser implements PageProcessor {
     public void process(Page page) {
 
         ArticleDO articleDO = NewsParserUtil.parseArticle(page, newsParserDO);
+        //填充url+taskId
+        articleDO.setUrl(page.getRequest().getUrl());
+        articleDO.setTaskId(taskInfo.getId());
+        articleDO.setTaskName(taskInfo.getName());
+
         //把整个对象放入map中的ArticleDO中,在pipeline去存出
         page.putField(ARTICLE_DO_KEY, articleDO);
         page.setSkip(false);
