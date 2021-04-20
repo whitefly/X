@@ -54,7 +54,7 @@ public class CssHelperController {
 
             return document.outerHtml();
         } catch (IOException e) {
-            log.warn("网页下载失败", e);
+            log.warn("网页下载失败 url:" + url, e);
             return "error";
         }
     }

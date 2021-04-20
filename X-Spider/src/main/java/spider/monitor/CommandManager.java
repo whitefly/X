@@ -31,9 +31,8 @@ public class CommandManager {
     private RedisDao redisDao;
 
 
-
     @Scheduled(cron = "*/3 * * * * ?")
-    private void listenForCmd() {
+    private void listenForCmd() throws Exception {
         //5秒轮训一下redis中的命令list
         String cmdStr = fetchCmd();
         if (cmdStr == null) return;

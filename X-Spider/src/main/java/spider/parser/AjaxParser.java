@@ -32,8 +32,8 @@ public class AjaxParser extends IndexParser {
             //获取正文页(IndexRule为jsonPath)
             List<String> linksByAjax = RequestUtil.getLinksByAjax(page, ajaxParserDO.getIndexRule());
             List<Request> requests = RequestUtil.convert2AliasRequest(linksByAjax, NEWS_URL_ALIAS);
-            filterNewsRequest(requests);
-            RequestUtil.addToQueue(page, requests);
+            List<Request> rest = filterNewsRequest(requests);
+            RequestUtil.addToQueue(page, rest);
         } else {
             super.process(page);
         }

@@ -51,12 +51,23 @@ public class GroupController {
 
     @PostMapping("/addTask")
     public ResponseVO addTask(@RequestBody String params) {
+        //每次单个增加任务改为批量增加任务
         Map map = GsonUtil.fromJson(params, Map.class);
         String groupId = (String) map.get("groupId");
-        String taskId = (String) map.get("taskId");
-        groupService.addTaskToGroup(groupId, taskId);
+        List<String> taskIds = (List<String>) map.get("taskIds");
+        groupService.addTaskToGroup(groupId, taskIds);
         return new ResponseVO();
     }
+
+    @PostMapping("/updateKeyword")
+    public ResponseVO addKeyWord(@RequestBody String params) {
+        Map map = GsonUtil.fromJson(params, Map.class);
+        String groupId = (String) map.get("groupId");
+        List<String> keyWords = (List<String>) map.get("keywords");
+        groupService.updateKeywords(groupId, keyWords);
+        return new ResponseVO();
+    }
+
 
     @PostMapping("/removeTask")
     public ResponseVO removeTask(@RequestBody String params) {
@@ -80,6 +91,14 @@ public class GroupController {
         Map map = GsonUtil.fromJson(params, Map.class);
         List<String> taskIds = (List<String>) map.get("taskIds");
         List<TaskDO> tasksByIds = taskService.findTasksByIds(taskIds);
+        Map<String, String> nameMapping = new HashMap<>();
+        tasksByIds.forEach(x -> nameMapping.put(x.getId(), x.getName()));
+        return new ResponseVO(nameMapping);
+    }
+
+    @PostMapping("/allTaskMapping")
+    public ResponseVO allTaskMapping() {
+        List<TaskDO> tasksByIds = taskService.taskDOList();
         Map<String, String> nameMapping = new HashMap<>();
         tasksByIds.forEach(x -> nameMapping.put(x.getId(), x.getName()));
         return new ResponseVO(nameMapping);

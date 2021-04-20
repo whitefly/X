@@ -9,7 +9,6 @@ import com.entity.DispatchLogDO;
 import com.entity.NewsParserDO;
 import com.entity.TaskDO;
 import com.entity.TaskEditVO;
-import com.google.gson.Gson;
 import com.utils.GsonUtil;
 import lombok.Getter;
 import lombok.Setter;

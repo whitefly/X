@@ -12,7 +12,6 @@ import com.utils.GsonUtil;
 import com.utils.TaskUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.text.StrBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.RedisSystemException;
 import org.springframework.stereotype.Component;
@@ -21,6 +20,7 @@ import spider.downloader.HtmlUnitDownloader;
 import spider.parser.*;
 import spider.pipeline.MongoPipeline;
 import spider.pipeline.NewsHealthPipeLine;
+import spider.service.MailService;
 import us.codecraft.webmagic.Spider;
 import us.codecraft.webmagic.downloader.Downloader;
 import us.codecraft.webmagic.downloader.HttpClientDownloader;
@@ -31,7 +31,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.utils.SystemInfoUtil.*;
 
@@ -42,7 +41,7 @@ public class CrawlReactor {
 
     private final MongoDao mongoDao;
     private final RedisDao redisDao;
-    private final MailDao mailDao;
+    private final MailService mailService;
     private final ZkDao zkDao;
     private final MongoPipeline mongoPipeline;
     private final NewsHealthPipeLine newsHealthPipeLine;
@@ -63,10 +62,10 @@ public class CrawlReactor {
     Downloader dynamicDownloader = new HtmlUnitDownloader();
     Downloader baseDownloader = new HttpClientDownloader();
 
-    public CrawlReactor(MongoDao mongoDao, RedisDao redisDao, MailDao mailDao, ZkDao zkDao, MongoPipeline mongoPipeline, NewsHealthPipeLine newsHealthPipeLine) {
+    public CrawlReactor(MongoDao mongoDao, RedisDao redisDao, MailService mailService, ZkDao zkDao, MongoPipeline mongoPipeline, NewsHealthPipeLine newsHealthPipeLine) {
         this.mongoDao = mongoDao;
         this.redisDao = redisDao;
-        this.mailDao = mailDao;
+        this.mailService = mailService;
         this.zkDao = zkDao;
         this.mongoPipeline = mongoPipeline;
         this.newsHealthPipeLine = newsHealthPipeLine;
@@ -185,8 +184,8 @@ public class CrawlReactor {
         } catch (RedisSystemException e) {
             log.warn("上一轮redis队列监听中断,现在监听队列:{}", taskQueue);
             Thread.interrupted();
-        }catch (Exception e){
-            log.error("初始化任务失败..",e);
+        } catch (Exception e) {
+            log.error("初始化任务失败..", e);
         }
     }
 
@@ -206,53 +205,7 @@ public class CrawlReactor {
         logCrawl(task, spider);
 
         //邮件通知
-        freshMail(task, spider);
-    }
-
-    private void freshMail(TaskDO task, HookSpider spider) {
-        PageProcessor processor = spider.getParser();
-        NewsParser parser;
-        List<ArticleDO> freshNews = null;
-        if (processor instanceof NewsParser) {
-            parser = (NewsParser) processor;
-            freshNews = parser.getFreshNews();
-            if (CollectionUtils.isEmpty(freshNews)) return;
-        }
-
-        String subscribeKey = RedisConstant.getSubscribeKey(task.getId());
-        Map<String, String> map = redisDao.getMap(subscribeKey);
-        if (CollectionUtils.isEmpty(map)) return;
-
-        // TODO: 2021/3/13 暂时只实现更新即发送邮件(关键词触发以后再实现)
-        //查询符合的订阅组
-        Set<String> subscribeGroupIds = map.keySet();
-        List<SubscribeGroupDO> groupByIds = mongoDao.findGroupByIds(subscribeGroupIds);
-
-        //发送邮件
-        List<ArticleDO> finalFreshNews = freshNews;
-        groupByIds.forEach(group -> {
-            String userId = group.getUserId();
-            if ("admin".equals(userId)) {
-                String subject = String.format("订阅组[%s] 新数据采集: %d", group.getGroupName(), finalFreshNews.size());
-                String body = mailContent(task, finalFreshNews);
-                mailDao.sendMail("316447676@qq.com", subject, body);
-            }
-        });
-    }
-
-    private String mailContent(TaskDO task, List<ArticleDO> articles) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("任务[").append(task.getName()).append("]").append(" 初始url:[ ").append(task.getStartUrl()).append(" ]").append("\n\n");
-
-        int size = articles.size();
-        for (int i = 0; i < size; i++) {
-            ArticleDO articleDO = articles.get(i);
-            sb.append("  ").append(i + 1).append(". ").append("\n");
-            sb.append("     ").append("标题: ").append(articleDO.getTitle()).append("\n");
-            sb.append("     ").append("url: ").append(articleDO.getUrl()).append("\n");
-            sb.append("\n");
-        }
-        return sb.toString();
+        mailService.freshMail(task, spider);
     }
 
 

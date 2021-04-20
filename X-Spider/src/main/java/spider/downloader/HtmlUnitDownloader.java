@@ -18,6 +18,8 @@ import us.codecraft.webmagic.selector.PlainText;
 
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.LocalTime;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
@@ -26,6 +28,9 @@ public class HtmlUnitDownloader implements Downloader, AutoCloseable {
     private final int waitForJs = 1000;
     private final int waitWindowsMaxTime = 10000;
     GenericObjectPool<WebWindow> webWindowPool;
+    private LocalTime lastRenew;
+    private AtomicInteger version; //根据版本时间戳
+    private final int hourGap = 2;
     WebClient webClient;
 
 
@@ -46,6 +51,13 @@ public class HtmlUnitDownloader implements Downloader, AutoCloseable {
     }
 
     void init() {
+        initPool();
+
+        version = new AtomicInteger(0);
+        version.addAndGet(1);
+    }
+
+    private void initPool() {
         //初始化webClient;
         WebClient webClient = new WebClient(BrowserVersion.CHROME);
         webClient.setJavaScriptTimeout(2000);
@@ -64,6 +76,8 @@ public class HtmlUnitDownloader implements Downloader, AutoCloseable {
         conf.setMaxIdle(poolSize);
         conf.setMinEvictableIdleTimeMillis(-1);
         webWindowPool = new GenericObjectPool<>(new MytPooledObjectFactory());
+
+        lastRenew = LocalTime.now();
     }
 
     public HtmlUnitDownloader() {
@@ -74,6 +88,7 @@ public class HtmlUnitDownloader implements Downloader, AutoCloseable {
     public Page download(Request request, Task task) {
         WebWindow webWindow = null;
         Page page = new Page();
+        int currentVersion = version.get();
         try {
             String url = request.getUrl();
             webWindow = webWindowPool.borrowObject(waitWindowsMaxTime);
@@ -96,7 +111,23 @@ public class HtmlUnitDownloader implements Downloader, AutoCloseable {
         } catch (Exception e) {
             log.info("动态下载网页失败:" + request.getUrl(), e);
         } finally {
-            if (webWindow != null) {
+            Duration between = Duration.between(lastRenew, LocalTime.now());
+            boolean needRenew = between.toHours() >= hourGap && currentVersion == version.get();
+            if (needRenew) {
+                //todo 万一此时是个连续的网页怎么办,webclient的关闭会导致其他的关闭?
+                //为了防止内存泄露,每两天重新更新一次WebClient;
+                synchronized (this) {
+                    if (currentVersion == version.get()) {
+                        version.addAndGet(1);
+                        //清空
+                        close();
+                        //重建
+                        initPool();
+                        //版本+1
+                        log.info("webClient重新初始完成...version:{}", version.get());
+                    }
+                }
+            } else if (webWindow != null && currentVersion == version.get()) {
                 webWindowPool.returnObject(webWindow);
                 log.debug("向浏览器对象池  返回 windows:{}", webWindow.getName());
             }

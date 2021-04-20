@@ -7,7 +7,7 @@ import static com.utils.ParserDeserializationUtil.typeAdapter;
 import static com.utils.ParserDeserializationUtil.fieldTypeAdapter;
 
 public class GsonUtil {
-    public static final Gson gson = new GsonBuilder()
+    public static final Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd HH:mm:ss")
             .registerTypeAdapterFactory(typeAdapter)
 //            .registerTypeAdapterFactory(fieldTypeAdapter)
             .create();

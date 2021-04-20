@@ -20,7 +20,13 @@ public enum ErrorCode implements BaseErrorInterface {
     SERVICE_PARSER_NOT_EXIST(123, "解析器数据不存在"),
     SERVICE_PARSER_MISS_FIELD_TYPE(125, "额外字段的属性类型不能为空"),
 
-    SERVICE_DOC_MISS_TASK_ID(201, "缺少taskId");
+    SERVICE_DOC_MISS_TASK_ID(201, "缺少taskId"),
+
+    SERVICE_SUBSCRIBE_NOT_EXIST(301, "订阅组不存在"),
+    SERVICE_SUBSCRIBE_NOT_CHOOSE(302, "请选择具体的订阅组来操作"),
+    SERVICE_SUBSCRIBE_DUP_TASK(303, "订阅组已经包含该任务"),
+
+    SERVICE_SUBSCRIBE_KEYWORD_EMPTY(303, "订阅组的触发词不能为空");
 
 
     private Integer code;

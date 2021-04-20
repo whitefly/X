@@ -126,6 +126,10 @@ public class MongoDao {
         return mongoTemplate.find(query, TaskDO.class);
     }
 
+    public List<TaskDO> findAllTask() {
+        return mongoTemplate.findAll(TaskDO.class);
+    }
+
 
     /**
      * 查询任务,俺时间排序
@@ -331,7 +335,7 @@ public class MongoDao {
     }
 
     public List<SubscribeGroupDO> listGroups() {
-        return mongoTemplate.find(new Query(), SubscribeGroupDO.class);
+        return mongoTemplate.findAll(SubscribeGroupDO.class);
     }
 
     public boolean deleteGroup(String groupId) {

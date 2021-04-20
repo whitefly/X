@@ -3,22 +3,15 @@ package center.utils;
 import com.alibaba.excel.EasyExcel;
 import com.entity.ArticleDO;
 import lombok.extern.slf4j.Slf4j;
-import org.jsoup.helper.StringUtil;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
 public class DocUtil {
@@ -63,7 +56,7 @@ public class DocUtil {
                 row.add(item.getTitle());
                 row.add(item.getContent());
                 row.add(item.getPtime());
-                item.getExtra().forEach((k, v) -> row.add(v));
+                item.getExtra().forEach((k, v) -> row.add(v.toString()));
                 dataObj.add(row);
             }
             EasyExcel.write(response.getOutputStream()).head(headObj).sheet("数据").doWrite(dataObj);

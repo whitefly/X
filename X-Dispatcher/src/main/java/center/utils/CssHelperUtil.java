@@ -1,5 +1,6 @@
 package center.utils;
 
+import com.utils.SystemInfoUtil;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.parser.Tag;
@@ -14,7 +15,7 @@ import java.util.regex.Pattern;
 public class CssHelperUtil {
 
     // TODO: 2021/3/10  上线后这里要替换,才能加载资源
-    static String baseUri = "http://localhost:8081";
+    static String baseUri = "http://" + SystemInfoUtil.getHost() + ":8081";
 
     static List<String> LINK_ATTRS_TO_CHANGE = Arrays.asList("href", "src", "data-url", "data-src");
 

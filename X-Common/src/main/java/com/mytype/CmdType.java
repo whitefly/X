@@ -1,8 +1,6 @@
 package com.mytype;
 
 
-import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
-
 import java.util.Arrays;
 
 public enum CmdType {
@@ -25,7 +23,7 @@ public enum CmdType {
         return cmdType + ":" + param;
     }
 
-    public static String getParamFromCmdStr(String cmdStr) {
+    public static String getParamFromCmdStr(String cmdStr) throws Exception {
         if (cmdStr == null) return null;
 
         int i = cmdStr.indexOf(":");
@@ -36,7 +34,7 @@ public enum CmdType {
         if (Arrays.stream(values).anyMatch(x -> x.name().equals(cmd))) {
             return cmdStr.substring(i + 1);
         } else {
-            throw new ValueException("未找到已知的枚举命令,无法解析 " + cmdStr);
+            throw new Exception("未找到已知的枚举命令,无法解析 " + cmdStr);
         }
     }
 
@@ -60,7 +58,7 @@ public enum CmdType {
         return null;
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
 
         String s1 = genCmdStr(Node_Cluster_Move, null);
         System.out.println(s1);

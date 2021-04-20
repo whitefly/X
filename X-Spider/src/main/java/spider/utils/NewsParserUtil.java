@@ -176,7 +176,8 @@ public class NewsParserUtil {
             Selectable xpathRst = page.getHtml().xpath(f.getXpath());
             all = text ? xpathRst.xpath("tidyText()").all() : xpathRst.xpath("outerHtml()").all();
         }
-        //不同元素的内容合并,text采用\n作为分隔,html作为空格进行分隔
+        //trim
+        if (CollectionUtils.isNotEmpty(all)) all = all.stream().map(String::trim).collect(Collectors.toList());
         return all;
     }
 

@@ -1,11 +1,10 @@
 package center.web.controller;
 
+import center.exception.WebException;
+import center.web.service.DocService;
 import com.entity.ArticleDO;
 import com.entity.PageVO;
 import com.entity.ResponseVO;
-import center.exception.WebException;
-import com.google.gson.Gson;
-import center.web.service.DocService;
 import com.utils.GsonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +73,4 @@ public class DocController {
         //将ArticleDO转为excel
         convertToExcel(response, articleDOS);
     }
-
-
 }

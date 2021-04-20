@@ -13,12 +13,12 @@ import com.entity.*;
 import com.mytype.ParserDOType;
 import com.utils.TaskUtil;
 import com.utils.UrlUtil;
-import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.quartz.CronExpression;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import spider.myenum.CrawlParserType;
 import spider.parser.NewsParser;
 import spider.parser.TestBodyParser;
@@ -31,7 +31,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static center.exception.ErrorCode.*;
@@ -107,7 +110,11 @@ public class TaskService {
     }
 
     public List<TaskDO> findTasksByIds(List<String> ids) {
-        return  mongoDao.findTaskByIds(ids);
+        return mongoDao.findTaskByIds(ids);
+    }
+
+    public List<TaskDO> taskDOList() {
+        return mongoDao.findAllTask();
     }
 
     public NewsParserDO findNewsParser(String parserId) {
@@ -263,14 +270,14 @@ public class TaskService {
 
 
     private TaskDO existTask(String taskId) {
-        if (taskId == null) throw new ValueException("taskId is null ! ! ");
+        Assert.notNull(taskId, "taskId is null ! !");
         TaskDO taskById = mongoDao.findTaskById(taskId);
         if (taskById == null) throw new WebException(SERVICE_TASK_NOT_EXIST);
         return taskById;
     }
 
     private NewsParserDO existIndexParser(String parserId) {
-        if (parserId == null) throw new ValueException("parserId is null !");
+        Assert.notNull(parserId, "parserId is null !");
         NewsParserDO parser = mongoDao.findNewsParserById(parserId);
         if (parser == null) throw new WebException(SERVICE_PARSER_NOT_EXIST);
         return parser;
