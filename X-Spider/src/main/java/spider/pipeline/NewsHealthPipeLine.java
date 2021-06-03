@@ -11,7 +11,10 @@ import us.codecraft.webmagic.ResultItems;
 import us.codecraft.webmagic.Task;
 import us.codecraft.webmagic.pipeline.Pipeline;
 
+import java.util.List;
 import java.util.Map;
+
+import static spider.parser.NewsParser.ARTICLE_DO_KEY;
 
 @Component
 @Slf4j
@@ -26,8 +29,14 @@ public class NewsHealthPipeLine implements Pipeline {
 
     @Override
     public void process(ResultItems resultItems, Task task) {
-        ArticleDO article = resultItems.get("ArticleDO");
+        Object obj = resultItems.get(ARTICLE_DO_KEY);
+        if (obj instanceof List) return;
 
+        setHealthLevel((ArticleDO) obj);
+    }
+
+    private void setHealthLevel(ArticleDO obj) {
+        ArticleDO article = obj;
         String title = article.getTitle();
         String content = article.getContent();
         Map<String, Object> extra = article.getExtra();

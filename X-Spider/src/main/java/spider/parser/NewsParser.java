@@ -11,9 +11,8 @@ import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Site;
 import us.codecraft.webmagic.processor.PageProcessor;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 最底层的正文处理器,其他处理器最终都会解析正文,所以都会继承它
@@ -52,19 +51,33 @@ public class NewsParser implements PageProcessor {
     @Override
     public void process(Page page) {
 
-        ArticleDO articleDO = NewsParserUtil.parseArticle(page, newsParserDO);
+        List<ArticleDO> articleDOList = new ArrayList<>();
+        boolean notBlockSplit = newsParserDO.getBlockSplit() == null || !newsParserDO.getBlockSplit();
+        if (notBlockSplit) {
+            articleDOList.add(NewsParserUtil.parseArticle(page, newsParserDO));
+        } else {
+            articleDOList = NewsParserUtil.parseArticlesList(page, newsParserDO);
+        }
+
         //填充url+taskId
-        articleDO.setUrl(page.getRequest().getUrl());
-        articleDO.setTaskId(taskInfo.getId());
-        articleDO.setTaskName(taskInfo.getName());
+        for (ArticleDO articleDO : articleDOList) {
+            articleDO.setUrl(page.getRequest().getUrl());
+            articleDO.setTaskId(taskInfo.getId());
+            articleDO.setTaskName(taskInfo.getName());
+        }
 
         //把整个对象放入map中的ArticleDO中,在pipeline去存出
-        page.putField(ARTICLE_DO_KEY, articleDO);
+        if (notBlockSplit) {
+            page.putField(ARTICLE_DO_KEY, articleDOList.get(0));
+        } else {
+            page.putField(ARTICLE_DO_KEY, articleDOList);
+        }
+
         page.setSkip(false);
 
         //统计
         if (freshNews != null) {
-            freshNews.add(articleDO);
+            freshNews.addAll(articleDOList);
         }
     }
 

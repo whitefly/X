@@ -25,6 +25,8 @@ public class NewsParserDO {
     @Field("extra")
     List<ExtraField> extra; //其他额外的抓取属性
 
+    Boolean blockSplit; //将单独网页拆分多个独立板块分开生成结果;
+
     String type;//用来反序列化是使用,平时用不到
 
 }

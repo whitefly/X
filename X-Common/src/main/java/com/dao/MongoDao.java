@@ -75,6 +75,10 @@ public class MongoDao {
         mongoTemplate.insert(article);
     }
 
+    public void saveArticles(List<ArticleDO> articles) {
+        mongoTemplate.insertAll(articles);
+    }
+
     /**
      * 保存task的修改记录
      *

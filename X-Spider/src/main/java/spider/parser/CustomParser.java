@@ -13,6 +13,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static spider.utils.NewsParserUtil.parseArticle;
+import static spider.utils.NewsParserUtil.parseArticlesList;
+
 @Slf4j
 public class CustomParser extends NewsParser {
     //初始url的别名就是叫 首页,需要和前端对齐
@@ -44,9 +47,11 @@ public class CustomParser extends NewsParser {
 
     String executeOneStep(Page page, StepDO step) {
         if (step.isExtract()) {
-            ArticleDO articleDO = NewsParserUtil.parseArticle(page, customParser);
-            page.putField(ARTICLE_DO_KEY, articleDO);
-            page.setSkip(false);
+            //长时间抓取有可能导致内存沾满
+            super.process(page);
+//            ArticleDO articleDO = NewsParserUtil.parseArticle(page, customParser);
+//            page.putField(ARTICLE_DO_KEY, articleDO);
+//            page.setSkip(false);
         }
         //解析成其他别名链接
         List<AliasField> links = step.getLinks();

@@ -133,8 +133,13 @@ public class TaskController {
 
         if (parser != null) {
             String url = taskEditVO.getTargetUrl();
-            Map<String, Object> rnt = taskService.testBody(task, parser, url);
-            return new ResponseVO(rnt);
+            if (parser.getBlockSplit() == null || !parser.getBlockSplit()) {
+                Map<String, Object> rnt = taskService.testBody(task, parser, url);
+                return new ResponseVO(rnt);
+            } else {
+                List<Map<String, Object>> rnt = taskService.testBodyByBlock(task, parser, url);
+                return new ResponseVO(rnt);
+            }
         } else {
             return new ResponseVO(ErrorCode.SERVICE_ERROR);
         }

@@ -8,7 +8,6 @@ import com.mytype.ExtraType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.checkerframework.checker.units.qual.A;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -23,6 +22,30 @@ import static com.utils.FieldUtil.hasNoLocator;
 
 @Slf4j
 public class NewsParserUtil {
+
+
+    public static List<ArticleDO> parseArticlesList(Page page, NewsParserDO parserDetail) {
+        //处理正文页的多项目清理,比如豆瓣评分,HelloGithub,不再需要标题和正文,只需要extra
+        Element scope = page.getHtml().getDocument().body();
+        List<ArticleDO> items = new ArrayList<>();
+        List<Map<String, Object>> maps = parseExtrasList(page, parserDetail, scope);
+        int size = maps.size();
+        for (int i = 0; i < size; i++) {
+            ArticleDO articleDO = createSimpleArticleDO();
+            articleDO.setExtra(maps.get(i));
+            items.add(articleDO);
+        }
+        return items;
+    }
+
+    private static ArticleDO createSimpleArticleDO() {
+        ArticleDO articleDO = new ArticleDO();
+        articleDO.setTitle("");
+        articleDO.setContent("");
+        articleDO.setCtime(new Date());
+        articleDO.setPtime(new Date());
+        return articleDO;
+    }
 
 
     public static ArticleDO parseArticle(Page page, NewsParserDO parserDetail) {
@@ -86,6 +109,61 @@ public class NewsParserUtil {
         return item;
     }
 
+    private static Map<String, List<String>> getInitExtraMap(Page page, NewsParserDO parserDetail, Element scope) {
+        // TODO: 2021/6/3  本函数和parseExtras代码一样,仅仅是参数申明不一致,需要减少重复代码合并搞成一个
+        Map<String, List<String>> parseInitResult = new HashMap<>();
+        for (ExtraField f : parserDetail.getExtra()) {
+            if (!StringUtils.isEmpty(f.getName())) {
+                List<String> data = parseExtra(page, f, scope);
+                parseInitResult.put(f.getName(), data);
+            }
+        }
+        return parseInitResult;
+    }
+
+    public static List<Map<String, Object>> parseExtrasList(Page page, NewsParserDO parserDetail, Element scope) {
+        if (parserDetail.getExtra() == null) return Collections.EMPTY_LIST;
+
+        Map<String, List<String>> parseInitResult = getInitExtraMap(page, parserDetail, scope);
+        Integer itemSize = checkItemsIsAlign(parseInitResult);
+        return itemSize == null ? Collections.EMPTY_LIST : reshapeItems(parseInitResult, itemSize);
+    }
+
+
+    private static List<Map<String, Object>> reshapeItems(Map<String, List<String>> parseInitResult, Integer itemSize) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (int i = 0; i < itemSize; i++) {
+            result.add(new HashMap<>());
+        }
+
+        for (Map.Entry<String, List<String>> entry : parseInitResult.entrySet()) {
+            String key = entry.getKey();
+            List<String> value = entry.getValue();
+            for (int i = 0; i < itemSize; i++) {
+                result.get(i).put(key, value.get(i));
+            }
+        }
+        return result;
+    }
+
+
+    private static Integer checkItemsIsAlign(Map<String, List<String>> items) {
+        //检查结果集是否对齐,方便后续进行横竖转化
+        Collection<List<String>> values = items.values();
+        Integer itemSize = null;
+        for (List<String> field : values) {
+            if (itemSize == null) {
+                itemSize = field.size();
+            } else {
+                if (!itemSize.equals(field.size())) {
+                    return null;
+                }
+            }
+        }
+        return itemSize;
+    }
+
+
     public static AutoExtractor.News autoParse(Page page) {
         Document document = page.getHtml().getDocument();
         AutoExtractor.News news = null;
@@ -136,10 +214,8 @@ public class NewsParserUtil {
         if (targetForText) {
             return extractTextOrHtml(page, f, true);
         } else {
-            //用户是否想缩小范围来提取(不缩小就采用自动算法获取的节点)
+            //用户是否给定缩小范围来提取(不缩小就采用自动算法获取的节点)
             boolean reduceScope = notEmpty(f.getCss()) || notEmpty(f.getXpath());
-
-            //还是采用dom树来解析
             Elements scope = reduceScope ? getScopeElements(page.getHtml().getDocument(), f) : new Elements(autoScope != null ? autoScope : page.getHtml().getDocument());
             return extractLink(f, scope);
         }

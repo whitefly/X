@@ -25,16 +25,14 @@ import spider.parser.TestBodyParser;
 import spider.parser.TestEpaperParser;
 import spider.pipeline.NothingPipeline;
 import us.codecraft.webmagic.Spider;
+import us.codecraft.webmagic.Task;
 import us.codecraft.webmagic.processor.PageProcessor;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.time.LocalTime;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static center.exception.ErrorCode.*;
@@ -330,6 +328,18 @@ public class TaskService {
         checkParserInfo(indexParserBO, true);
 
         Map<String, Object> rnt = new HashMap<>();
+        TestBodyParser spider = new TestBodyParser(task, indexParserBO, rnt);
+        Spider app = Spider.create(spider).addUrl(targetUrl).thread(1).addPipeline(new NothingPipeline());
+        if (task.isDynamic()) {
+            app.setDownloader(DynamicUtil.dynamicDownloader);
+        }
+        app.run();
+        return rnt;
+    }
+
+    public List<Map<String, Object>> testBodyByBlock(TaskDO task, NewsParserDO indexParserBO, String targetUrl) {
+        checkParserInfo(indexParserBO, true);
+        List<Map<String, Object>> rnt = new ArrayList<>();
         TestBodyParser spider = new TestBodyParser(task, indexParserBO, rnt);
         Spider app = Spider.create(spider).addUrl(targetUrl).thread(1).addPipeline(new NothingPipeline());
         if (task.isDynamic()) {
