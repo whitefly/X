@@ -8,4 +8,6 @@ public class SysInfo {
     String os;
     String cpuArch;
     Long totalMem;
+
+    double usedMem;
 }

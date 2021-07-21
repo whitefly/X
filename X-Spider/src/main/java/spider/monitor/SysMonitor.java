@@ -15,8 +15,8 @@ public class SysMonitor {
         SysInfo sysInfo = new SysInfo();
         sysInfo.setOs(osBean.getName());
         sysInfo.setCpuArch(osBean.getArch());
-        long l = osBean.getTotalPhysicalMemorySize() / 1024 / 1024 / 1024;
-        sysInfo.setTotalMem(l);
+        sysInfo.setTotalMem(osBean.getTotalPhysicalMemorySize() / 1024 / 1024 / 1024);
+        sysInfo.setUsedMem(Runtime.getRuntime().totalMemory() / (1024.0 * 1024));
         return sysInfo;
     }
 }
